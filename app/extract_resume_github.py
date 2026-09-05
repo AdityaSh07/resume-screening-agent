@@ -7,22 +7,39 @@ from langchain_core.documents import Document
 URL_PATTERN = re.compile(r"https?://[^\s]+")
 
 
-def extract_candidate_links(document: Document) -> dict[str, str | None]:
-    urls = URL_PATTERN.findall(document.page_content)
+def extract_candidate_links(
+    document: Document,
+) -> dict[str, str | None]:
+
+    urls = URL_PATTERN.findall(
+        document.page_content
+    )
 
     github_url = None
     resume_url = None
 
     for url in urls:
+
+        # Remove punctuation that may be attached to the URL
         url = url.rstrip(".,;:)]}")
 
-        if "github.com" in url.lower():
+        lower_url = url.lower()
+
+        # GitHub
+        if (
+            "github.com/" in lower_url
+            and github_url is None
+        ):
             github_url = url
 
+        # Resume
         elif (
-            "drive.google.com" in url.lower()
-            or "docs.google.com" in url.lower()
-            or url.lower().endswith(".pdf")
+            (
+                "drive.google.com/" in lower_url
+                or "docs.google.com/" in lower_url
+                or lower_url.endswith(".pdf")
+            )
+            and resume_url is None
         ):
             resume_url = url
 
