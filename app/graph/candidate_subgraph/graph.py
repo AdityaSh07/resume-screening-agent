@@ -6,10 +6,13 @@ from .nodes import (
     download_resume_node,
     resume_eval_node,
     analyze_github_node,
+    github_eval_node,
+    overall_score_node,
 )
 
 
 candidate_builder = StateGraph(CandidateState)
+
 
 candidate_builder.add_node(
     "extract_candidate_links",
@@ -29,6 +32,16 @@ candidate_builder.add_node(
 candidate_builder.add_node(
     "analyze_github",
     analyze_github_node,
+)
+
+candidate_builder.add_node(
+    "github_eval",
+    github_eval_node,
+)
+
+candidate_builder.add_node(
+    "calculate_overall_score",
+    overall_score_node,
 )
 
 
@@ -53,12 +66,26 @@ candidate_builder.add_edge(
 )
 
 candidate_builder.add_edge(
+    "analyze_github",
+    "github_eval",
+)
+
+
+# Both evaluations must complete
+# before calculating the overall score
+
+candidate_builder.add_edge(
     "resume_eval",
-    END,
+    "calculate_overall_score",
 )
 
 candidate_builder.add_edge(
-    "analyze_github",
+    "github_eval",
+    "calculate_overall_score",
+)
+
+candidate_builder.add_edge(
+    "calculate_overall_score",
     END,
 )
 

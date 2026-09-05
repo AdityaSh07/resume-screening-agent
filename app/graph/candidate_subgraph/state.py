@@ -11,5 +11,12 @@ class CandidateState(TypedDict, total=False):
 
     resume_data: str | None
     resume_score: float | None
+    resume_reasoning: str | None
 
     github_data: dict | None
+    github_text: str | None
+    github_score: float | None
+    github_reasoning: str | None
+
+    overall_score: float | None
+    shortlisted: bool | None

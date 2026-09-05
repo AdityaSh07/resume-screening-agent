@@ -1,8 +1,9 @@
 from app.graph.candidate_subgraph.services.extract_resume_github import extract_candidate_links
 from app.graph.candidate_subgraph.services.get_resume import download_resume
-from app.llm import llm_for_resume
+from app.llm import llm_for_resume, llm_for_github
 from langchain.schema import Document
 from .prompts.resume_eval_prompt import resume_eval_prompt
+from .prompts.github_eval_prompt import github_eval_prompt
 from .state import CandidateState
 
 from .services.get_github_details import analyze_github
@@ -64,15 +65,52 @@ def resume_eval_node(state: CandidateState):
 
     return {
         "resume_score": evaluation.score,
+        "resume_reasoning": evaluation.reasoning,
     }
 
 
 async def analyze_github_node(state: CandidateState):
 
     github_data = await analyze_github(
-        state.get("github_url")
+        state.get("github_url"),
+        state.get("jd_requirements"),
     )
 
     return {
         "github_data": github_data
+    }
+
+
+async def github_eval_node(state: CandidateState):
+
+    messages = github_eval_prompt.format_messages(
+        jd_requirements=state["jd_requirements"],
+        github_text=state.get("github_text"),
+    )
+
+    result = await llm_for_github.ainvoke(
+        messages
+    )
+
+    return {
+        "github_score": result.score,
+        "github_reasoning": result.reasoning,
+    }
+
+
+def overall_score_node(state: CandidateState):
+
+    resume_score = state.get("resume_score") or 0
+    github_score = state.get("github_score") or 0
+
+    overall_score = (
+        resume_score * 0.7
+        + github_score * 0.3
+    )
+
+    shortlisted = overall_score >= 70
+
+    return {
+        "overall_score": overall_score,
+        "shortlisted": shortlisted,
     }

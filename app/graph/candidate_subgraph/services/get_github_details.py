@@ -2,14 +2,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from dotenv import load_dotenv
+
+from app.schemas import JDRequirements
+from .get_github_text import build_github_text
+
 
 logger = logging.getLogger(__name__)
 
 GITHUB_API = "https://api.github.com"
+
 TIMEOUT = httpx.Timeout(
     connect=5.0,
     read=10.0,
@@ -17,14 +24,23 @@ TIMEOUT = httpx.Timeout(
     pool=5.0,
 )
 
+load_dotenv()
+
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+if not GITHUB_TOKEN:
+    raise RuntimeError("GITHUB_TOKEN is not configured")
+
 HEADERS = {
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2026-03-10",
     "User-Agent": "CandidateScreeningPlatform",
+    "Authorization": f"Bearer {GITHUB_TOKEN}",
 }
 
 
 class GitHubClient:
+
     def __init__(self):
         self.client = httpx.AsyncClient(
             timeout=TIMEOUT,
@@ -45,6 +61,7 @@ class GitHubClient:
     ) -> httpx.Response | None:
 
         for attempt in range(retries + 1):
+
             try:
                 response = await self.client.get(
                     url,
@@ -54,7 +71,10 @@ class GitHubClient:
 
                 # Rate limited
                 if response.status_code in (403, 429):
-                    retry_after = response.headers.get("Retry-After")
+
+                    retry_after = response.headers.get(
+                        "Retry-After"
+                    )
 
                     if retry_after:
                         wait = min(float(retry_after), 10)
@@ -69,10 +89,12 @@ class GitHubClient:
                         "GitHub rate limit reached: %s",
                         url,
                     )
+
                     return None
 
                 # Temporary GitHub/server failure
                 if response.status_code >= 500:
+
                     if attempt < retries:
                         await asyncio.sleep(2 ** attempt)
                         continue
@@ -82,11 +104,13 @@ class GitHubClient:
                         response.status_code,
                         url,
                     )
+
                     return None
 
                 return response
 
             except httpx.TimeoutException:
+
                 logger.warning(
                     "GitHub request timed out: %s",
                     url,
@@ -99,6 +123,7 @@ class GitHubClient:
                 return None
 
             except httpx.RequestError as exc:
+
                 logger.warning(
                     "GitHub request failed: %s - %s",
                     url,
@@ -112,17 +137,25 @@ class GitHubClient:
                 return None
 
             except Exception:
+
                 logger.exception(
                     "Unexpected GitHub error: %s",
                     url,
                 )
+
                 return None
 
         return None
 
+    # ---------------------------------------------------------
+    # 1. Validate GitHub URL
+    # ---------------------------------------------------------
 
     @staticmethod
-    def validate_github_url(url: str | None) -> str | None:
+    def validate_github_url(
+        url: str | None,
+    ) -> str | None:
+
         if not url:
             return None
 
@@ -149,7 +182,7 @@ class GitHubClient:
                 if part
             ]
 
-            # We only accept profile URLs:
+            # Only accept profile URLs:
             # github.com/username
             if len(parts) != 1:
                 return None
@@ -167,7 +200,11 @@ class GitHubClient:
             return username
 
         except Exception:
-            logger.exception("Failed to validate GitHub URL")
+
+            logger.exception(
+                "Failed to validate GitHub URL"
+            )
+
             return None
 
     # ---------------------------------------------------------
@@ -193,13 +230,16 @@ class GitHubClient:
             return None
 
         if response.status_code != 200:
+
             logger.warning(
                 "Unexpected GitHub profile status: %s",
                 response.status_code,
             )
+
             return None
 
         try:
+
             data = response.json()
 
             return {
@@ -212,10 +252,12 @@ class GitHubClient:
             }
 
         except (ValueError, TypeError):
+
             logger.exception(
                 "Invalid GitHub profile response for %s",
                 username,
             )
+
             return None
 
     # ---------------------------------------------------------
@@ -250,13 +292,16 @@ class GitHubClient:
             return []
 
         if response.status_code != 200:
+
             logger.warning(
                 "Unexpected repository status: %s",
                 response.status_code,
             )
+
             return []
 
         try:
+
             repos = response.json()
 
             if not isinstance(repos, list):
@@ -267,7 +312,10 @@ class GitHubClient:
                     "name": repo.get("name"),
                     "full_name": repo.get("full_name"),
                     "description": repo.get("description"),
-                    "stars": repo.get("stargazers_count", 0),
+                    "stars": repo.get(
+                        "stargazers_count",
+                        0,
+                    ),
                     "language": repo.get("language"),
                     "url": repo.get("html_url"),
                     "updated_at": repo.get("updated_at"),
@@ -276,14 +324,69 @@ class GitHubClient:
             ]
 
         except (ValueError, TypeError):
+
             logger.exception(
                 "Invalid repository response for %s",
                 username,
             )
+
             return []
 
     # ---------------------------------------------------------
-    # 4. Get repository details
+    # 4. Filter repositories using JD requirements
+    # ---------------------------------------------------------
+
+    def filter_repositories(
+        self,
+        repositories: list[dict[str, Any]],
+        jd_requirements: JDRequirements,
+    ) -> list[dict[str, Any]]:
+
+        skills = (
+            jd_requirements.required_skills
+            + jd_requirements.preferred_skills
+            + jd_requirements.required_languages
+            + jd_requirements.keywords
+        )
+
+        if not skills:
+            return repositories
+
+        skills = [
+            skill.lower().strip()
+            for skill in skills
+            if skill
+        ]
+
+        filtered_repositories = []
+
+        for repo in repositories:
+
+            searchable_text = " ".join(
+                str(repo.get(field) or "")
+                for field in (
+                    "name",
+                    "description",
+                    "language",
+                )
+            ).lower()
+
+            if any(
+                skill in searchable_text
+                for skill in skills
+            ):
+                filtered_repositories.append(repo)
+
+        logger.info(
+            "Filtered repositories: %s -> %s",
+            len(repositories),
+            len(filtered_repositories),
+        )
+
+        return filtered_repositories
+
+    # ---------------------------------------------------------
+    # 5. Get repository details
     # ---------------------------------------------------------
 
     async def get_repository_details(
@@ -306,16 +409,19 @@ class GitHubClient:
             return None
 
         if response.status_code != 200:
+
             logger.warning(
                 "Unexpected repository detail status: %s",
                 response.status_code,
             )
+
             return None
 
         try:
+
             data = response.json()
 
-            # GitHub's repository response contains topics.
+            # GitHub repository response contains topics.
             topics = data.get("topics") or []
 
             # Get languages separately.
@@ -324,6 +430,7 @@ class GitHubClient:
             languages = []
 
             if languages_url:
+
                 languages_response = await self._get(
                     languages_url
                 )
@@ -332,15 +439,23 @@ class GitHubClient:
                     languages_response
                     and languages_response.status_code == 200
                 ):
-                    try:
-                        languages_data = languages_response.json()
 
-                        if isinstance(languages_data, dict):
+                    try:
+
+                        languages_data = (
+                            languages_response.json()
+                        )
+
+                        if isinstance(
+                            languages_data,
+                            dict,
+                        ):
                             languages = list(
                                 languages_data.keys()
                             )
 
                     except (ValueError, TypeError):
+
                         logger.warning(
                             "Invalid languages response for %s/%s",
                             owner,
@@ -351,22 +466,27 @@ class GitHubClient:
                 "name": data.get("name"),
                 "full_name": data.get("full_name"),
                 "description": data.get("description"),
-                "stars": data.get("stargazers_count", 0),
+                "stars": data.get(
+                    "stargazers_count",
+                    0,
+                ),
                 "topics": topics,
                 "languages": languages,
                 "url": data.get("html_url"),
             }
 
         except (ValueError, TypeError):
+
             logger.exception(
-                "Invalid repository detail response for %s/%s",
+                "Invalid repository response for %s/%s",
                 owner,
                 repo,
             )
+
             return None
 
     # ---------------------------------------------------------
-    # 5. Get README
+    # 6. Get README
     # ---------------------------------------------------------
 
     async def get_repository_readme(
@@ -397,54 +517,80 @@ class GitHubClient:
             return None
 
         if response.status_code != 200:
+
             logger.warning(
                 "Unexpected README status for %s/%s: %s",
                 owner,
                 repo,
                 response.status_code,
             )
+
             return None
 
         return response.text
 
 
+# =============================================================
+# GitHub Analysis
+# =============================================================
 
-async def analyze_github(github_url: str | None):
+async def analyze_github(
+    github_url: str | None,
+    jd_requirements: JDRequirements,
+):
     client = GitHubClient()
 
     try:
+
         # 1. Validate GitHub URL
-        username = client.validate_github_url(github_url)
+        username = client.validate_github_url(
+            github_url
+        )
 
         if not username:
             return None
 
         # 2. Get profile
-        profile = await client.get_github_profile(username)
+        profile = await client.get_github_profile(
+            username
+        )
 
         if not profile:
             return None
 
         # 3. Get repositories
-        repositories = await client.get_github_repositories(username)
+        repositories = await client.get_github_repositories(
+            username
+        )
+
+        # 4. Filter repositories using JD requirements
+        filtered_repositories = client.filter_repositories(
+            repositories,
+            jd_requirements,
+        )
 
         repo_data = []
 
-        # 4. Get repository details
-        # 5. Get README
-        for repo in repositories:
+        # 5. Only deeply inspect relevant repositories
+        for repo in filtered_repositories:
+
             full_name = repo.get("full_name")
 
             if not full_name:
                 continue
 
-            owner, repo_name = full_name.split("/", 1)
+            owner, repo_name = full_name.split(
+                "/",
+                1,
+            )
 
+            # 6. Get repository details
             details = await client.get_repository_details(
                 owner,
                 repo_name,
             )
 
+            # 7. Get README
             readme = await client.get_repository_readme(
                 owner,
                 repo_name,
@@ -456,12 +602,22 @@ async def analyze_github(github_url: str | None):
                 "readme": readme,
             })
 
-        return {
+        # 8. Store complete GitHub data
+        github_data = {
             "profile": profile,
             "repositories": repo_data,
         }
 
+        # 9. Create compact text for LLM
+        github_text = build_github_text(
+            repo_data
+        )
+
+        return {
+            "github_data": github_data,
+            "github_text": github_text,
+        }
+
     finally:
+
         await client.close()
-
-

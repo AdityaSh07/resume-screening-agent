@@ -1,5 +1,5 @@
 from langchain_groq import ChatGroq
-from .schemas import JDRequirements, ResumeEvaluation
+from .schemas import JDRequirements, ResumeEvaluation, GitHubEvaluation
 
 from dotenv import load_dotenv
 
@@ -17,3 +17,6 @@ llm_for_jd = llm.with_structured_output(JDRequirements)
 
 llm_for_resume = llm.with_structured_output(ResumeEvaluation)
 
+llm_for_github = llm.with_structured_output(
+    GitHubEvaluation
+)
