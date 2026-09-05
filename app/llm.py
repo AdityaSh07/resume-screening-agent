@@ -1,8 +1,10 @@
 from langchain_groq import ChatGroq
-from .schemas import JDRequirements
+from .schemas import JDRequirements, ResumeEvaluation
 
 from dotenv import load_dotenv
-load_dotenv()  
+
+load_dotenv()
+
 
 llm = ChatGroq(
     model="qwen/qwen3.8-27b",
@@ -13,4 +15,5 @@ llm = ChatGroq(
 
 llm_for_jd = llm.with_structured_output(JDRequirements)
 
+llm_for_resume = llm.with_structured_output(ResumeEvaluation)
 

@@ -21,3 +21,15 @@ class JDRequirements(BaseModel):
     github_signals: list[str] = Field(default_factory=list)
 
     keywords: list[str] = Field(default_factory=list)
+
+
+from pydantic import BaseModel, Field
+
+
+class ResumeEvaluation(BaseModel):
+    score: float = Field(
+        description="Overall resume match score from 0 to 100."
+    )
+    reasoning: str = Field(
+        description="Brief explanation of why this score was given."
+    )

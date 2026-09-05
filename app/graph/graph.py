@@ -1,8 +1,9 @@
 from .state import ScreeningState
 from .nodes import builder
+from .candidate_subgraph.graph import candidate_graph
+
 from langgraph.graph import START, END
 from langgraph.types import Send
-
 
 
 builder.add_edge(
@@ -20,11 +21,12 @@ builder.add_edge(
     "analyze_jd",
 )
 
+
 def send_candidates(state: ScreeningState):
 
     return [
         Send(
-            "extract_candidate_links",
+            "candidate_processing",
             {
                 "job_id": state["job_id"],
                 "candidate": candidate,
@@ -34,29 +36,26 @@ def send_candidates(state: ScreeningState):
         for candidate in state["candidates"]
     ]
 
+
 builder.add_conditional_edges(
     "analyze_jd",
     send_candidates,
 )
 
-builder.add_edge(
-    "extract_candidate_links",
-    "download_resume",
+
+builder.add_node(
+    "candidate_processing",
+    candidate_graph,
 )
 
-builder.add_edge(
-    "extract_candidate_links",
-    "analyze_github",
-)
 
 builder.add_edge(
-    "extract_candidate_links",
-    "analyze_github",
-)
-
-builder.add_edge(
-    "analyze_github",
+    "candidate_processing",
     END,
 )
 
+
 graph = builder.compile()
+
+
+
