@@ -4,7 +4,7 @@ from app.graph.candidate_subgraph.services.extract_resume_github import (
 from app.graph.candidate_subgraph.services.get_resume import download_resume
 from app.llm import llm_for_github, llm_for_resume
 from app.rate_limiter import llm_rate_limiter
-from langchain.schema import Document
+from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader
 from pathlib import Path
 
