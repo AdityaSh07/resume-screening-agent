@@ -138,7 +138,6 @@
             <a href="#" class="nav-tab hover:text-black pb-1 border-b-2 border-transparent transition" data-target="dashboard">Dashboard</a>
             <a href="#" class="nav-tab hover:text-black pb-1 border-b-2 border-transparent transition" data-target="candidates">Candidates</a>
             <a href="#" class="nav-tab hover:text-black pb-1 border-b-2 border-transparent transition" data-target="tests">Tests</a>
-            <a href="#" class="nav-tab hover:text-black pb-1 border-b-2 border-transparent transition" data-target="interviews">Interviews</a>
         </div>
         <div class="flex items-center space-x-6">
             <button onclick="switchTab('dashboard')" class="bg-black text-white px-5 py-2 rounded-full hover:bg-gray-800 transition">Go to Dashboard</button>
@@ -228,29 +227,6 @@
                     <p class="text-sm text-gray-500 uppercase tracking-wide font-medium mb-1">Test Sent</p>
                     <p class="text-4xl font-medium text-black" id="stat-test-sent">0</p>
                 </div>
-                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
-                    <p class="text-sm text-gray-500 uppercase tracking-wide font-medium mb-1">Tested</p>
-                    <p class="text-4xl font-medium text-black" id="stat-tested">0</p>
-                </div>
-                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
-                    <p class="text-sm text-gray-500 uppercase tracking-wide font-medium mb-1">Interviews Scheduled</p>
-                    <p class="text-4xl font-medium text-black" id="stat-interviews">0</p>
-                </div>
-            </div>
-
-            <div class="flex flex-wrap gap-4 mb-10">
-                <button onclick="actionEvaluate()" id="btn-eval" class="bg-black text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-gray-800 transition shadow-md flex items-center">
-                    Evaluate Candidates
-                </button>
-                <button onclick="actionShortlist()" id="btn-shortlist" class="border border-gray-300 bg-white/50 backdrop-blur-sm text-black px-6 py-3 rounded-full text-sm font-medium hover:border-gray-400 transition flex items-center">
-                    Shortlist
-                </button>
-                <button onclick="switchTab('tests')" class="border border-gray-300 bg-white/50 backdrop-blur-sm text-black px-6 py-3 rounded-full text-sm font-medium hover:border-gray-400 transition">
-                    Send Test Links
-                </button>
-                <button onclick="switchTab('interviews')" class="border border-gray-300 bg-white/50 backdrop-blur-sm text-black px-6 py-3 rounded-full text-sm font-medium hover:border-gray-400 transition">
-                    Schedule Interviews
-                </button>
             </div>
 
             <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
@@ -292,6 +268,7 @@
                     </table>
                 </div>
             </div>
+
         </div>
 
         <!-- View: Tests -->
@@ -299,16 +276,6 @@
             <h2 class="text-3xl font-medium tracking-tight text-black mb-8">Test Management</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                <!-- Send Links -->
-                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
-                    <h3 class="text-lg font-medium text-black mb-4">Send Test Links</h3>
-                    <p class="text-sm text-gray-600 mb-4">Send an online assessment link to shortlisted candidates.</p>
-                    <input type="text" id="test-link-input" placeholder="https://test-platform.com/..." class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:border-black mb-4">
-                    <button onclick="actionSendTestLinks()" id="btn-send-tests" class="bg-black text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition flex items-center">
-                        Send Links
-                    </button>
-                </div>
-                
                 <!-- Upload Results -->
                 <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
                     <h3 class="text-lg font-medium text-black mb-4">Upload Results</h3>
@@ -318,6 +285,7 @@
                         <input type="file" id="test-csv-upload" accept=".csv, .xlsx, .xls">
                     </label>
                     <p id="test-csv-name" class="text-xs text-gray-500 mt-3 hidden"></p>
+                    <p id="test-summary" class="text-sm text-gray-600 mt-3"></p>
                 </div>
             </div>
 
@@ -340,60 +308,31 @@
                     </table>
                 </div>
             </div>
-        </div>
 
-        <!-- View: Interviews -->
-        <div id="view-interviews" class="view-transition view-hidden w-full">
-            <h2 class="text-3xl font-medium tracking-tight text-black mb-8">Interviews</h2>
-            
-            <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm mb-10">
-                <h3 class="text-lg font-medium text-black mb-4">Schedule Interviews</h3>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm mt-10">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
                     <div>
-                        <label class="block text-xs text-gray-500 uppercase tracking-wide mb-1">Interviewer Email</label>
-                        <input type="email" id="int-email" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
+                        <h3 class="text-lg font-medium text-black">Interview Scheduling</h3>
+                        <p id="calendar-status" class="text-sm text-gray-600 mt-1">Connect the recruiter's Google Calendar to create a real Meet event.</p>
                     </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 uppercase tracking-wide mb-1">Start Date</label>
-                        <input type="date" id="int-date" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 uppercase tracking-wide mb-1">Start Time</label>
-                        <input type="time" id="int-time" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-500 uppercase tracking-wide mb-1">Duration (mins)</label>
-                        <input type="number" id="int-duration" value="60" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
-                    </div>
+                    <button onclick="connectGoogleCalendar()" class="border border-gray-300 bg-white text-black px-5 py-2 rounded-full text-sm font-medium hover:border-black transition">
+                        Connect Google Calendar
+                    </button>
                 </div>
-                <button onclick="actionScheduleInterviews()" id="btn-schedule" class="bg-black text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition flex items-center mt-2">
-                    Schedule for Selected Candidates
-                </button>
-            </div>
-
-            <div class="bg-white/90 backdrop-blur-md border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-medium">
-                                <th class="p-4">Name</th>
-                                <th class="p-4">Email</th>
-                                <th class="p-4">Date/Time</th>
-                                <th class="p-4">Meet Link</th>
-                                <th class="p-4">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="interviews-tbody" class="text-sm text-gray-800 divide-y divide-gray-100">
-                            <!-- Rows inserted via JS -->
-                        </tbody>
-                    </table>
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <select id="interview-candidate" class="border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
+                        <option value="">Select eligible candidate</option>
+                    </select>
+                    <input type="date" id="interview-date" class="border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
+                    <input type="time" id="interview-time" class="border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
+                    <input type="number" id="interview-duration" value="60" min="1" class="border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black" placeholder="Duration (minutes)">
+                    <input type="text" id="interview-timezone" value="Asia/Kolkata" class="border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black" placeholder="Timezone e.g. Asia/Kolkata">
+                    <input type="email" id="interviewer-email" class="border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black" placeholder="Interviewer email">
                 </div>
-            </div>
-            
-            <div class="mt-6">
-                <button onclick="actionSendInterviewInvites()" id="btn-send-invites" class="border border-gray-300 bg-white/50 backdrop-blur-sm text-black px-6 py-3 rounded-full text-sm font-medium hover:border-gray-400 transition flex items-center">
-                    Send Interview Invitations
+                <button onclick="scheduleInterview()" id="btn-schedule-interview" class="bg-black text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition mt-4">
+                    Schedule Interview
                 </button>
+                <p id="interview-result" class="text-sm text-gray-600 mt-3"></p>
             </div>
         </div>
 
@@ -405,6 +344,12 @@
         let selectedFile = null;
         let allCandidates = [];
         let currentScreeningResult = null;
+
+        const calendarConnected = new URLSearchParams(window.location.search).get('calendar_connected');
+        if (calendarConnected === '1') {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            setTimeout(() => showToast('Google Calendar connected. You can schedule the interview now.'), 0);
+        }
 
         // UI Helpers
         const spinnerSVG = `<svg class="animate-spin ml-2 h-4 w-4 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
@@ -436,7 +381,7 @@
         }
 
         // --- Navigation ---
-        const views = ['home', 'jd', 'dashboard', 'candidates', 'tests', 'interviews'];
+        const views = ['home', 'jd', 'dashboard', 'candidates', 'tests'];
         function switchTab(targetView) {
             if(targetView === 'jd') return; // Handled separately
             
@@ -468,7 +413,6 @@
             if (targetView === 'dashboard') loadDashboard();
             if (targetView === 'candidates') loadCandidates();
             if (targetView === 'tests') loadCandidates(); // Tests view uses candidates data
-            if (targetView === 'interviews') loadCandidates(); // Interviews view uses candidates data
         }
 
         document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -535,7 +479,7 @@
                     method: 'POST',
                     body: formData
                 });
-                currentJobId = 'screening-result';
+                currentJobId = currentScreeningResult.job_id;
 
                 renderWorkflowResults(currentScreeningResult);
                 showToast("Candidates evaluated successfully!");
@@ -558,14 +502,29 @@
             document.getElementById('stat-total').innerText = result.total_candidates || 0;
             document.getElementById('stat-evaluated').innerText = result.evaluated || 0;
             document.getElementById('stat-shortlisted').innerText = result.shortlisted || 0;
-            document.getElementById('stat-test-sent').innerText = 0;
-            document.getElementById('stat-tested').innerText = 0;
-            document.getElementById('stat-interviews').innerText = 0;
+            const sentCount = (result.email_results || [])
+                .filter(emailResult => emailResult.status === 'sent').length;
+            document.getElementById('stat-test-sent').innerText = sentCount;
             document.getElementById('dashboard-jd-content').innerText = jdInput.value.trim();
 
             const tbody = document.getElementById('candidates-tbody');
             tbody.innerHTML = '';
-            (result.candidates || []).forEach((candidate, index) => {
+            const uniqueCandidates = [];
+            const seenCandidates = new Set();
+            (result.candidates || []).forEach(candidate => {
+                const identity = [
+                    candidate.name,
+                    candidate.email,
+                    candidate.overall_score,
+                    candidate.resume_score,
+                    candidate.github_score,
+                ].join('|');
+                if (!seenCandidates.has(identity)) {
+                    seenCandidates.add(identity);
+                    uniqueCandidates.push(candidate);
+                }
+            });
+            uniqueCandidates.forEach((candidate, index) => {
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50 transition';
                 const score = typeof candidate.overall_score === 'number'
@@ -599,9 +558,6 @@
                 document.getElementById('stat-evaluated').innerText = stats.evaluated;
                 document.getElementById('stat-shortlisted').innerText = stats.shortlisted;
                 document.getElementById('stat-test-sent').innerText = stats.test_sent;
-                document.getElementById('stat-tested').innerText = stats.tested;
-                document.getElementById('stat-interviews').innerText = stats.interviews_scheduled;
-                
                 if (stats.job) {
                     document.getElementById('dashboard-jd-content').innerText = stats.job.description;
                 }
@@ -639,10 +595,6 @@
                 const testsTbody = document.getElementById('tests-tbody');
                 testsTbody.innerHTML = '';
                 
-                // Render Interviews Table
-                const intTbody = document.getElementById('interviews-tbody');
-                intTbody.innerHTML = '';
-
                 allCandidates.forEach((c, index) => {
                     // --- Candidate Row ---
                     const row = document.createElement('tr');
@@ -720,23 +672,6 @@
                         testsTbody.appendChild(tr);
                     }
 
-                    // --- Interview Row ---
-                    if (c.interview || ['test_sent', 'shortlisted'].includes(c.status)) {
-                        const ir = document.createElement('tr');
-                        const iv = c.interview || {};
-                        const dateStr = iv.scheduled_at ? new Date(iv.scheduled_at).toLocaleString() : '-';
-                        const linkStr = iv.google_meet_link ? `<a href="${iv.google_meet_link}" target="_blank" class="text-blue-600 hover:underline">Join Meet</a>` : '-';
-                        const statusStr = iv.status ? `<span class="px-2 py-1 bg-gray-100 text-xs rounded">${iv.status}</span>` : '-';
-                        
-                        ir.innerHTML = `
-                            <td class="p-4 font-medium">${c.name}</td>
-                            <td class="p-4 text-xs text-gray-500">${c.email}</td>
-                            <td class="p-4">${dateStr}</td>
-                            <td class="p-4">${linkStr}</td>
-                            <td class="p-4">${statusStr}</td>
-                        `;
-                        intTbody.appendChild(ir);
-                    }
                 });
 
             } catch (e) { console.error(e); }
@@ -770,81 +705,6 @@
             }
         }
 
-        function actionEvaluate() {
-            if(!currentJobId) return showToast("No job ID", "error");
-            doActionWithLoading('btn-eval', 'Evaluate Candidates', () => 
-                apiCall('/api/evaluate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ job_id: currentJobId })
-                })
-            );
-        }
-
-        function actionShortlist() {
-            if(!currentJobId) return showToast("No job ID", "error");
-            doActionWithLoading('btn-shortlist', 'Shortlist', () => 
-                apiCall('/api/shortlist', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ job_id: currentJobId })
-                })
-            );
-        }
-
-        function actionSendTestLinks() {
-            const ids = getSelectedCandidateIds();
-            if (ids.length === 0) return showToast("Select candidates from Candidates tab first", "error");
-            const link = document.getElementById('test-link-input').value;
-            
-            doActionWithLoading('btn-send-tests', 'Send Links', () => 
-                apiCall('/api/send-test-links', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ candidate_ids: ids, test_link: link || undefined })
-                })
-            );
-        }
-
-        function actionScheduleInterviews() {
-            const ids = getSelectedCandidateIds();
-            if (ids.length === 0) return showToast("Select candidates from Candidates tab first", "error");
-            
-            const email = document.getElementById('int-email').value;
-            const date = document.getElementById('int-date').value;
-            const time = document.getElementById('int-time').value;
-            const duration = document.getElementById('int-duration').value;
-            
-            if(!email || !date || !time) return showToast("Fill all interview details", "error");
-
-            doActionWithLoading('btn-schedule', 'Schedule for Selected Candidates', () => 
-                apiCall('/api/schedule-interviews', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        candidate_ids: ids,
-                        interviewer_email: email,
-                        start_date: date,
-                        start_time: time,
-                        interview_duration_minutes: parseInt(duration)
-                    })
-                })
-            );
-        }
-
-        function actionSendInterviewInvites() {
-            const ids = getSelectedCandidateIds();
-            if (ids.length === 0) return showToast("Select candidates from Candidates tab first", "error");
-            
-            doActionWithLoading('btn-send-invites', 'Send Interview Invitations', () => 
-                apiCall('/api/send-interview-invites', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ candidate_ids: ids })
-                })
-            );
-        }
-
         // Test CSV Upload
         const testCsvUpload = document.getElementById('test-csv-upload');
         testCsvUpload.addEventListener('change', async (e) => {
@@ -862,12 +722,20 @@
                 document.getElementById('upload-test-text').innerHTML = `Uploading... ${spinnerSVG}`;
                 
                 try {
-                    await apiCall('/api/upload-test-results', {
+                    const uploadResult = await apiCall('/api/upload-test-results', {
                         method: 'POST',
                         body: formData
                     });
+                    renderUploadedTestResults(uploadResult.results || []);
+                    renderInterviewShortlist(
+                        uploadResult.final_shortlist || [],
+                        uploadResult.test_passing_score
+                    );
+                    document.getElementById('test-summary').innerText =
+                        `Initial shortlist: ${uploadResult.initial_shortlist_count}. ` +
+                        `Matched test results: ${uploadResult.matched_count}. ` +
+                        `Final interview shortlist: ${uploadResult.final_shortlist_count}.`;
                     showToast("Test results uploaded successfully!");
-                    await loadCandidates();
                 } catch (err) {
                     console.error(err);
                 } finally {
@@ -876,6 +744,92 @@
                 }
             }
         });
+
+        function renderUploadedTestResults(results) {
+            const tbody = document.getElementById('tests-tbody');
+            tbody.innerHTML = '';
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="p-4 font-medium">${result.name || '-'}</td>
+                    <td class="p-4 text-xs text-gray-500">${result.email || '-'}</td>
+                    <td class="p-4">${result.logical_aptitude_score ?? '-'}</td>
+                    <td class="p-4">${result.coding_test_score ?? '-'}</td>
+                    <td class="p-4 font-bold">${result.test_score ?? '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderInterviewShortlist(results, passingScore = 70) {
+            const select = document.getElementById('interview-candidate');
+            select.innerHTML = '<option value="">Select eligible candidate</option>';
+            if (results.length === 0) {
+                select.innerHTML = `<option value="">No eligible candidates (minimum test score: ${passingScore})</option>`;
+                document.getElementById('interview-result').innerText =
+                    `No candidates qualify for interviews. The minimum test score is ${passingScore}.`;
+                return;
+            }
+            results.forEach(candidate => {
+                const option = document.createElement('option');
+                option.value = candidate.id || candidate.candidate_id || '';
+                option.textContent = `${candidate.name || '-'} (${candidate.email || '-'}) - ${candidate.final_score ?? candidate.test_score ?? '-'} `;
+                select.appendChild(option);
+            });
+        }
+
+        async function scheduleInterview() {
+            const calendarStatus = await apiCall('/api/google-calendar/status');
+            if (!calendarStatus.connected) {
+                showToast('Connect Google Calendar before scheduling the interview.', 'error');
+                window.location.href = '/api/google-calendar/connect';
+                return;
+            }
+            const candidateId = document.getElementById('interview-candidate').value;
+            const interviewDate = document.getElementById('interview-date').value;
+            const interviewTime = document.getElementById('interview-time').value;
+            const durationMinutes = Number(document.getElementById('interview-duration').value);
+            const timezone = document.getElementById('interview-timezone').value.trim();
+            const interviewer = document.getElementById('interviewer-email').value.trim();
+            if (!candidateId || !interviewDate || !interviewTime || !timezone || !interviewer) {
+                showToast('Select a candidate, slot, timezone, and interviewer.', 'error');
+                return;
+            }
+            const button = document.getElementById('btn-schedule-interview');
+            button.disabled = true;
+            button.innerHTML = `Scheduling... ${spinnerSVG}`;
+            try {
+                const result = await apiCall('/api/interviews/schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        job_id: currentJobId,
+                        candidate_id: Number(candidateId),
+                        interview_date: interviewDate,
+                        interview_time: interviewTime,
+                        duration_minutes: durationMinutes,
+                        timezone,
+                        interviewer
+                    })
+                });
+                document.getElementById('interview-result').innerText = result.status === 'already_scheduled'
+                    ? 'This candidate already has an interview scheduled.'
+                    : `Interview scheduled. Meeting link: ${result.meeting.meeting_url}`;
+                showToast(result.status === 'already_scheduled' ? 'Interview already scheduled.' : 'Interview scheduled successfully.');
+            } finally {
+                button.disabled = false;
+                button.innerText = 'Schedule Interview';
+            }
+        }
+
+        async function connectGoogleCalendar() {
+            const status = await apiCall('/api/google-calendar/status');
+            if (status.connected) {
+                document.getElementById('calendar-status').innerText = 'Google Calendar is connected.';
+                return;
+            }
+            window.location.href = '/api/google-calendar/connect';
+        }
 
 
         // --- Dynamic Text Effect ---
