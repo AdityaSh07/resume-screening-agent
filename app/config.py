@@ -89,5 +89,13 @@ GITHUB_TOKEN: str | None = os.getenv("GITHUB_TOKEN")
 # Database
 # ---------------------------------------------------------
 
-POSTGRE_DB_URL: str | None = os.getenv("POSTGRE_DB_URL")
+_database_url = os.getenv("DATABASE_URL") or os.getenv("POSTGRE_DB_URL")
+if _database_url:
+    _database_url = _database_url.replace("postgres://", "postgresql://", 1)
+    if _database_url.startswith("postgresql://"):
+        _database_url = _database_url.replace(
+            "postgresql://", "postgresql+asyncpg://", 1
+        )
+
+POSTGRE_DB_URL: str | None = _database_url
 

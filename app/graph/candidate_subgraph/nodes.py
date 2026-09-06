@@ -6,6 +6,7 @@ from app.llm import llm_for_github, llm_for_resume
 from app.rate_limiter import llm_rate_limiter
 from langchain.schema import Document
 from langchain_community.document_loaders import PyPDFLoader
+from pathlib import Path
 
 from .prompts.github_eval_prompt import github_eval_prompt
 from .prompts.resume_eval_prompt import resume_eval_prompt
@@ -54,6 +55,8 @@ def download_resume_node(state: CandidateState):
         )
     except Exception:
         resume_text = None
+    finally:
+        Path(resume_path).unlink(missing_ok=True)
 
     return {"resume_data": resume_text}
 

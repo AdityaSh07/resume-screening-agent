@@ -9,6 +9,7 @@ langchain
 langchain-community
 langchain-groq
 pypdf
+gdown
 python-dotenv
 resend
 SQLAlchemy>=2.0
