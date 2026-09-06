@@ -1,5 +1,6 @@
-from typing import TypedDict
+from typing import TypedDict, Annotated
 from langchain_core.documents import Document
+import operator
 
 
 class ScreeningState(TypedDict, total=False):
@@ -18,16 +19,9 @@ class ScreeningState(TypedDict, total=False):
     # JD analysis result
     jd_requirements: dict
 
-    # Current candidate when Send() fans out
-    candidate: Document
+    # Evaluated candidate results (accumulated by evaluate_candidates_node)
+    # Each entry is the final CandidateState dict for one candidate.
+    candidate_results: Annotated[list[dict], operator.add]
 
-    # Extracted candidate links
-    resume_url: str | None
-    github_url: str | None
-
-    # Processing results
-    resume_data: str | None
-    github_data: dict | None
-
-    # Final candidate results
-    results: list[dict]
+    # Shortlisted candidates after scoring (populated by shortlist_node)
+    shortlisted_candidates: list[dict] | None

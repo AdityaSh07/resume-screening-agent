@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+slowapi
+python-multipart
+pandas
+openpyxl
+langgraph
+langchain
+langchain-community
+langchain-groq
+pypdf
+python-dotenv
