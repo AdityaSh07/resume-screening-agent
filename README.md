@@ -102,6 +102,14 @@ Save interview -> Send interview email
 - Saves interview details in PostgreSQL.
 - Sends the interview invitation email.
 
+### Google Calendar verification
+
+The Google Calendar integration was verified by scheduling the event **“AI/ML Engineer Interview - Student 1”**. The event appears in the recruiter's Google Calendar on **Tuesday 8, 12:21–1:21 PM (GMT+00)**, confirming that ScreenEasy can create the interview appointment successfully.
+
+![Google Calendar shows the scheduled AI/ML Engineer Interview for Student 1](agent_images/calendar_img_ss.png)
+
+After a successful schedule request, the app now shows a green confirmation: **“Interview added to Google Calendar.”** It also provides the generated Google Meet link.
+
 ## Requirements
 
 - Python 3.12+
