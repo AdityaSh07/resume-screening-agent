@@ -1,5 +1,16 @@
 # Secrets — never commit
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
+client_secret*.json
+id_rsa
+id_ed25519
 
 # Downloaded resumes (may contain personal data)
 resumes/

@@ -2,6 +2,35 @@
 
 ScreenEasy is a FastAPI and LangGraph candidate-screening application. It evaluates resumes and GitHub profiles, stores jobs and shortlisted candidates in PostgreSQL, processes test results, and supports interview scheduling.
 
+## Live Demo
+
+[Open the deployed ScreenEasy application](https://resume-screening-agent-0tyj.onrender.com/)
+
+## Quick Start
+
+You can run ScreenEasy in either of these ways:
+
+### Manual Python Setup
+
+In Windows PowerShell or a PowerShell tab in Windows Terminal, install the Python dependencies, configure `.env` with a reachable PostgreSQL database, then start the API:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+See [Manual Setup](#manual-setup) for the complete Windows, Linux, and macOS instructions.
+
+### Docker Compose Setup
+
+In Windows PowerShell or a PowerShell tab in Windows Terminal, create `.env` from `.env.example`, set the required credentials, then build and start the application and PostgreSQL together:
+
+```powershell
+docker compose --env-file .env up --build
+```
+
+See [Docker Compose Setup](#docker-compose-setup) for service management commands.
+
 ## Agent Workflows
 
 The application uses four LangGraph workflows. Their generated diagrams are available through `python generate_agent_images.py`.
@@ -115,9 +144,9 @@ POSTGRE_DB_URL=postgresql+asyncpg://USER:PASSWORD@HOST:5432/DATABASE
 
 ## Manual Setup
 
-### Windows PowerShell
+### Windows PowerShell or Windows Terminal
 
-From the repository root:
+Open Windows PowerShell or Windows Terminal with a PowerShell profile, then run the following from the repository root:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
