@@ -4,11 +4,11 @@ slowapi
 python-multipart
 pandas
 openpyxl
-langgraph
+langgraph==0.2.45
 langchain==0.3.7
 langchain-core==0.3.63
-langchain-community==0.4.1
-langchain-groq
+langchain-community==0.3.7
+langchain-groq==0.2.1
 pypdf
 gdown
 python-dotenv
