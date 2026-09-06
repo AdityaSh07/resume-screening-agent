@@ -5,8 +5,9 @@ python-multipart
 pandas
 openpyxl
 langgraph
-langchain
-langchain-community
+langchain==0.3.7
+langchain-core==0.3.63
+langchain-community==0.4.1
 langchain-groq
 pypdf
 gdown
