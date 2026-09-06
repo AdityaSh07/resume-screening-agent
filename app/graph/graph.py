@@ -24,6 +24,8 @@ Architecture
       ↓
     rank_candidates           — sort by score, populate shortlisted_candidates
       ↓
+    send_shortlisted_test_emails — email assessment links to shortlisted candidates
+      ↓
     END
 
 Rate-limiting note
@@ -50,7 +52,8 @@ builder.add_edge("load_candidates", "process_job_description")
 builder.add_edge("process_job_description", "analyze_jd")
 builder.add_edge("analyze_jd", "evaluate_candidates")
 builder.add_edge("evaluate_candidates", "rank_candidates")
-builder.add_edge("rank_candidates", END)
+builder.add_edge("rank_candidates", "send_shortlisted_test_emails")
+builder.add_edge("send_shortlisted_test_emails", END)
 
 
 graph = builder.compile()

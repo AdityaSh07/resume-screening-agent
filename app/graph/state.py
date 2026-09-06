@@ -25,3 +25,6 @@ class ScreeningState(TypedDict, total=False):
 
     # Shortlisted candidates after scoring (populated by shortlist_node)
     shortlisted_candidates: list[dict] | None
+
+    # Delivery results for the post-ranking candidate notifications
+    email_results: list[dict]

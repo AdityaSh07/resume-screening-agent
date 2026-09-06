@@ -254,23 +254,25 @@ class LLMRateLimiter:
                 exc_str = str(exc)
                 exc_type = type(exc).__name__
 
-                # Detect 429 / rate-limit signals without importing
+                # Detect transient provider failures without importing
                 # provider-specific exception types.
-                is_rate_limit = (
+                is_retryable = (
                     "429" in exc_str
                     or "rate_limit" in exc_str.lower()
                     or "rate limit" in exc_str.lower()
                     or "too many requests" in exc_str.lower()
                     or "ratelimit" in exc_str.lower()
+                    or "tool_use_failed" in exc_str.lower()
+                    or "failed_generation" in exc_str.lower()
                 )
 
-                if is_rate_limit:
+                if is_retryable:
                     wait_s = min(
                         self._retry_base_wait * (2 ** attempt),
                         LLM_BATCH_WAIT_SECONDS,
                     )
                     logger.warning(
-                        "LLM rate limit hit (%s). "
+                        "Retryable LLM failure (%s). "
                         "Attempt %d/%d. Retrying in %.0fs …",
                         exc_type,
                         attempt + 1,

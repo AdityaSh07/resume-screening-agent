@@ -100,6 +100,7 @@ async def screen_candidates(
 				"shortlisted": len(shortlisted),
 				"candidates": results,
 				"shortlisted_candidates": shortlisted,
+				"email_results": workflow_result.get("email_results", []),
 			}
 		)
 	except ValueError as exc:

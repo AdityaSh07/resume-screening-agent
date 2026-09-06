@@ -52,7 +52,7 @@ LLM_TEMPERATURE: float = float(
 )
 
 LLM_MAX_TOKENS: int = int(
-    os.getenv("LLM_MAX_TOKENS", "800")
+    os.getenv("LLM_MAX_TOKENS", "4096")
 )
 
 
@@ -65,6 +65,8 @@ RESEND_API_KEY: str | None = os.getenv("RESEND_API_KEY")
 EMAIL_FROM: str = os.getenv(
     "EMAIL_FROM", "amssre.15001@gmail.com"
 )
+
+TEST_LINK: str | None = os.getenv("TEST_LINK")
 
 
 # ---------------------------------------------------------

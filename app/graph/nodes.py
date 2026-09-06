@@ -26,9 +26,11 @@ import logging
 from langgraph.graph import StateGraph
 
 from app.config import LLM_BATCH_SIZE, LLM_BATCH_WAIT_SECONDS
+from app.config import TEST_LINK
 from app.document_loader import load_candidates
 from app.analyze_jd import analyze_jd
 from app.get_jd import process_job_description
+from app.services.email_service import email_service
 from app.graph.candidate_subgraph.graph import candidate_graph
 from .state import ScreeningState
 from langchain_core.documents import Document
@@ -236,4 +238,73 @@ def rank_candidates_node(state: ScreeningState) -> dict:
 builder.add_node(
     "rank_candidates",
     rank_candidates_node,
+)
+
+
+def _candidate_field(candidate: Document | dict, field_name: str) -> str:
+    if isinstance(candidate, dict):
+        content = candidate.get("page_content", "")
+    else:
+        content = candidate.page_content
+
+    prefix = f"{field_name}:"
+    for line in content.splitlines():
+        if line.lower().startswith(prefix):
+            return line[len(prefix):].strip()
+    return ""
+
+
+async def send_shortlisted_test_emails_node(
+    state: ScreeningState,
+) -> dict:
+    shortlisted = state.get("shortlisted_candidates") or []
+
+    if not shortlisted:
+        logger.info("No shortlisted candidates; no test emails to send.")
+        return {"email_results": []}
+
+    if not TEST_LINK:
+        logger.warning(
+            "TEST_LINK is not configured; skipping shortlisted test emails."
+        )
+        return {
+            "email_results": [
+                {
+                    "status": "skipped",
+                    "reason": "TEST_LINK is not configured",
+                }
+            ]
+        }
+
+    email_results: list[dict] = []
+    for result in shortlisted:
+        candidate = result.get("candidate") or {}
+        email = _candidate_field(candidate, "email")
+        name = _candidate_field(candidate, "name") or "Candidate"
+
+        if not email:
+            email_results.append(
+                {"status": "skipped", "name": name, "reason": "email missing"}
+            )
+            continue
+
+        sent = await email_service.send_test_invitation(
+            to_email=email,
+            candidate_name=name,
+            test_link=TEST_LINK,
+        )
+        email_results.append(
+            {
+                "status": "sent" if sent else "failed",
+                "name": name,
+                "email": email,
+            }
+        )
+
+    return {"email_results": email_results}
+
+
+builder.add_node(
+    "send_shortlisted_test_emails",
+    send_shortlisted_test_emails_node,
 )

@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from app.graph.state import ScreeningState
 from app.llm import llm_for_jd
+from app.rate_limiter import llm_rate_limiter
 
 
 jd_prompt = ChatPromptTemplate.from_messages([
@@ -25,6 +26,8 @@ Rules:
 - Extract signals that can later be evaluated from a candidate's
   GitHub profile and repositories.
 - Extract important technical keywords for candidate matching.
+- Keep each list concise and include only the most important items.
+- Do not repeat equivalent requirements.
 
 The output must follow the provided structured schema.
 """
@@ -44,7 +47,10 @@ async def analyze_jd(state: ScreeningState):
         jd_text=state["jd_text"]
     )
 
-    response = await llm_for_jd.ainvoke(messages)
+    response = await llm_rate_limiter.ainvoke_with_retry(
+        llm_for_jd,
+        messages,
+    )
 
     return {
         "jd_requirements": response

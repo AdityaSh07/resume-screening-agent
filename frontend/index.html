@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScreenEasy - Recruitment Platform</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js for Globe Effect -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fafafa;
+            overflow-x: hidden;
+            margin: 0;
+        }
+
+        /* Subtle grid background matching the screenshot */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-size: 50px 50px;
+            background-image: 
+                linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+            z-index: -2;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            right: -10vw;
+            width: 70vw;
+            height: 100vh;
+            z-index: -1;
+            opacity: 0.8;
+            pointer-events: none; /* Prevents 3D canvas from blocking clicks */
+        }
+
+        .dynamic-text-wrapper {
+            display: inline-block;
+            position: relative;
+            min-width: 250px;
+        }
+
+        .dynamic-text {
+            display: inline-block;
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            border-bottom: 4px solid #e5e7eb;
+        }
+
+        .fade-out {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .fade-in {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Smooth transition between views */
+        .view-transition {
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        
+        .view-hidden {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+            transform: translateY(20px);
+            width: 100%;
+            visibility: hidden;
+        }
+        
+        .view-active {
+            opacity: 1;
+            pointer-events: auto;
+            position: relative;
+            transform: translateY(0);
+            width: 100%;
+            visibility: visible;
+        }
+        
+        .toast-enter {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        .toast-enter-active {
+            transform: translateX(0);
+            opacity: 1;
+            transition: all 0.3s ease-out;
+        }
+        .toast-exit {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        .toast-exit-active {
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.3s ease-in;
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="relative min-h-screen flex flex-col">
+
+    <div class="bg-grid"></div>
+    <div id="canvas-container"></div>
+    
+    <div id="toast-container" class="fixed top-24 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- Navigation -->
+    <nav class="flex justify-between items-center px-10 py-6 text-sm font-medium z-10 relative bg-white/30 backdrop-blur-md sticky top-0 border-b border-gray-200 shadow-sm">
+        <div class="flex items-center space-x-2 text-xl font-medium tracking-tight cursor-pointer" onclick="switchTab('home')">
+            <span>ScreenEasy</span>
+            <span class="text-xs font-normal text-gray-500 uppercase tracking-wider relative top-[-2px]">TM</span>
+        </div>
+        <div class="hidden md:flex space-x-8 text-gray-600" id="nav-tabs">
+            <a href="#" class="nav-tab text-black border-b-2 border-black pb-1" data-target="home">Home</a>
+            <a href="#" class="nav-tab hover:text-black pb-1 border-b-2 border-transparent transition" data-target="dashboard">Dashboard</a>
+            <a href="#" class="nav-tab hover:text-black pb-1 border-b-2 border-transparent transition" data-target="candidates">Candidates</a>
+            <a href="#" class="nav-tab hover:text-black pb-1 border-b-2 border-transparent transition" data-target="tests">Tests</a>
+            <a href="#" class="nav-tab hover:text-black pb-1 border-b-2 border-transparent transition" data-target="interviews">Interviews</a>
+        </div>
+        <div class="flex items-center space-x-6">
+            <button onclick="switchTab('dashboard')" class="bg-black text-white px-5 py-2 rounded-full hover:bg-gray-800 transition">Go to Dashboard</button>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow flex flex-col px-10 md:px-20 py-10 z-10 w-full max-w-7xl mx-auto relative overflow-hidden">
+        
+        <!-- View: Home (Landing & Upload) -->
+        <div id="view-home" class="view-transition view-active mt-[10vh]">
+            <div class="flex items-center space-x-4 mb-6">
+                <div class="h-[1px] w-8 bg-gray-300"></div>
+                <p class="text-xs uppercase tracking-widest text-gray-500">The platform for modern recruitment</p>
+            </div>
+
+            <h1 class="text-[5rem] md:text-[7rem] font-medium leading-[1.05] tracking-tight text-black mb-8 max-w-4xl">
+                The platform <br>
+                to <span class="dynamic-text-wrapper"><span id="dynamic-word" class="dynamic-text">screen</span></span>
+            </h1>
+
+            <p class="text-lg md:text-xl text-gray-600 max-w-lg mb-10 leading-relaxed">
+                Automate your recruitment workflow. Evaluate candidates instantly using AI analysis of resumes, GitHub profiles, and test performance.
+            </p>
+
+            <div class="flex items-center space-x-4">
+                <label class="bg-black text-white px-8 py-4 rounded-full text-sm font-medium cursor-pointer hover:bg-gray-800 transition flex items-center group shadow-lg">
+                    <span id="upload-csv-text">Upload CSV Dataset</span>
+                    <span class="ml-2 group-hover:translate-x-1 transition-transform" id="upload-csv-icon">→</span>
+                    <input type="file" id="csv-upload" accept=".csv, .xlsx, .xls">
+                </label>
+                
+                <button onclick="switchTab('dashboard')" class="border border-gray-300 text-black px-8 py-4 rounded-full text-sm font-medium hover:border-gray-400 transition bg-white/50 backdrop-blur-sm">
+                    View Dashboard
+                </button>
+            </div>
+        </div>
+
+        <!-- View: JD Input -->
+        <div id="view-jd" class="view-transition view-hidden w-full max-w-3xl mt-[10vh]">
+            <div class="flex items-center space-x-4 mb-4">
+                <div class="h-[1px] w-8 bg-black"></div>
+                <p class="text-xs uppercase tracking-widest text-black font-medium">Step 2 of 2</p>
+            </div>
+
+            <h2 class="text-4xl md:text-5xl font-medium tracking-tight text-black mb-4">
+                Provide Job Description
+            </h2>
+            
+            <p class="text-gray-600 mb-8 text-lg">
+                File <span id="uploaded-filename" class="font-bold text-black">candidates.csv</span> loaded successfully. Paste the job description below to evaluate these candidates against your requirements.
+            </p>
+
+            <textarea id="jd-input" rows="8" 
+                class="w-full border border-gray-300 rounded-xl p-5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent mb-8 resize-y shadow-sm bg-white/70 backdrop-blur-md text-base" 
+                placeholder="Paste Job Description here... e.g., We are looking for an AI Engineer with experience in Python, LangChain, and FastAPI..."></textarea>
+            
+            <div class="flex items-center space-x-4">
+                <button id="start-eval-btn" class="bg-black text-white px-8 py-4 rounded-full text-sm font-medium hover:bg-gray-800 transition shadow-lg flex items-center group">
+                    <span id="eval-btn-text">Start AI Evaluation</span>
+                    <span class="ml-2 group-hover:translate-x-1 transition-transform" id="eval-btn-icon">→</span>
+                </button>
+                <button id="cancel-jd-btn" class="text-gray-500 hover:text-black font-medium text-sm transition px-4">
+                    Cancel
+                </button>
+            </div>
+        </div>
+
+        <!-- View: Dashboard -->
+        <div id="view-dashboard" class="view-transition view-hidden w-full">
+            <h2 class="text-3xl font-medium tracking-tight text-black mb-8">Dashboard</h2>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mb-10">
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <p class="text-sm text-gray-500 uppercase tracking-wide font-medium mb-1">Total Candidates</p>
+                    <p class="text-4xl font-medium text-black" id="stat-total">0</p>
+                </div>
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <p class="text-sm text-gray-500 uppercase tracking-wide font-medium mb-1">Evaluated</p>
+                    <p class="text-4xl font-medium text-black" id="stat-evaluated">0</p>
+                </div>
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <p class="text-sm text-gray-500 uppercase tracking-wide font-medium mb-1">Shortlisted</p>
+                    <p class="text-4xl font-medium text-black" id="stat-shortlisted">0</p>
+                </div>
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <p class="text-sm text-gray-500 uppercase tracking-wide font-medium mb-1">Test Sent</p>
+                    <p class="text-4xl font-medium text-black" id="stat-test-sent">0</p>
+                </div>
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <p class="text-sm text-gray-500 uppercase tracking-wide font-medium mb-1">Tested</p>
+                    <p class="text-4xl font-medium text-black" id="stat-tested">0</p>
+                </div>
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <p class="text-sm text-gray-500 uppercase tracking-wide font-medium mb-1">Interviews Scheduled</p>
+                    <p class="text-4xl font-medium text-black" id="stat-interviews">0</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-4 mb-10">
+                <button onclick="actionEvaluate()" id="btn-eval" class="bg-black text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-gray-800 transition shadow-md flex items-center">
+                    Evaluate Candidates
+                </button>
+                <button onclick="actionShortlist()" id="btn-shortlist" class="border border-gray-300 bg-white/50 backdrop-blur-sm text-black px-6 py-3 rounded-full text-sm font-medium hover:border-gray-400 transition flex items-center">
+                    Shortlist
+                </button>
+                <button onclick="switchTab('tests')" class="border border-gray-300 bg-white/50 backdrop-blur-sm text-black px-6 py-3 rounded-full text-sm font-medium hover:border-gray-400 transition">
+                    Send Test Links
+                </button>
+                <button onclick="switchTab('interviews')" class="border border-gray-300 bg-white/50 backdrop-blur-sm text-black px-6 py-3 rounded-full text-sm font-medium hover:border-gray-400 transition">
+                    Schedule Interviews
+                </button>
+            </div>
+
+            <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
+                <h3 class="text-lg font-medium text-black mb-2">Active Job Description</h3>
+                <div id="dashboard-jd-content" class="text-gray-600 whitespace-pre-wrap text-sm max-h-48 overflow-y-auto">
+                    No active job description.
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Candidates -->
+        <div id="view-candidates" class="view-transition view-hidden w-full">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-medium tracking-tight text-black">Candidates</h2>
+                <button onclick="loadCandidates()" class="text-sm font-medium text-gray-600 hover:text-black transition flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    Refresh
+                </button>
+            </div>
+
+            <div class="bg-white/90 backdrop-blur-md border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-medium">
+                                <th class="p-4 w-12"><input type="checkbox" id="selectAllCands" class="rounded border-gray-300"></th>
+                                <th class="p-4">Rank</th>
+                                <th class="p-4">Name</th>
+                                <th class="p-4">College</th>
+                                <th class="p-4">CGPA</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4">Score</th>
+                                <th class="p-4">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="candidates-tbody" class="text-sm text-gray-800 divide-y divide-gray-100">
+                            <!-- Rows inserted via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Tests -->
+        <div id="view-tests" class="view-transition view-hidden w-full">
+            <h2 class="text-3xl font-medium tracking-tight text-black mb-8">Test Management</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                <!-- Send Links -->
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <h3 class="text-lg font-medium text-black mb-4">Send Test Links</h3>
+                    <p class="text-sm text-gray-600 mb-4">Send an online assessment link to shortlisted candidates.</p>
+                    <input type="text" id="test-link-input" placeholder="https://test-platform.com/..." class="w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:border-black mb-4">
+                    <button onclick="actionSendTestLinks()" id="btn-send-tests" class="bg-black text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition flex items-center">
+                        Send Links
+                    </button>
+                </div>
+                
+                <!-- Upload Results -->
+                <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <h3 class="text-lg font-medium text-black mb-4">Upload Results</h3>
+                    <p class="text-sm text-gray-600 mb-4">Upload CSV with candidate test scores (logical_aptitude, coding_test).</p>
+                    <label class="bg-gray-100 text-black px-6 py-2 rounded-full text-sm font-medium cursor-pointer hover:bg-gray-200 border border-gray-300 transition inline-flex items-center">
+                        <span id="upload-test-text">Choose CSV File</span>
+                        <input type="file" id="test-csv-upload" accept=".csv, .xlsx, .xls">
+                    </label>
+                    <p id="test-csv-name" class="text-xs text-gray-500 mt-3 hidden"></p>
+                </div>
+            </div>
+
+            <h3 class="text-xl font-medium text-black mb-4">Test Results</h3>
+            <div class="bg-white/90 backdrop-blur-md border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-medium">
+                                <th class="p-4">Name</th>
+                                <th class="p-4">Email</th>
+                                <th class="p-4">Logical Aptitude</th>
+                                <th class="p-4">Coding Score</th>
+                                <th class="p-4">Total Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tests-tbody" class="text-sm text-gray-800 divide-y divide-gray-100">
+                            <!-- Rows inserted via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Interviews -->
+        <div id="view-interviews" class="view-transition view-hidden w-full">
+            <h2 class="text-3xl font-medium tracking-tight text-black mb-8">Interviews</h2>
+            
+            <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm mb-10">
+                <h3 class="text-lg font-medium text-black mb-4">Schedule Interviews</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs text-gray-500 uppercase tracking-wide mb-1">Interviewer Email</label>
+                        <input type="email" id="int-email" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 uppercase tracking-wide mb-1">Start Date</label>
+                        <input type="date" id="int-date" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 uppercase tracking-wide mb-1">Start Time</label>
+                        <input type="time" id="int-time" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 uppercase tracking-wide mb-1">Duration (mins)</label>
+                        <input type="number" id="int-duration" value="60" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black">
+                    </div>
+                </div>
+                <button onclick="actionScheduleInterviews()" id="btn-schedule" class="bg-black text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition flex items-center mt-2">
+                    Schedule for Selected Candidates
+                </button>
+            </div>
+
+            <div class="bg-white/90 backdrop-blur-md border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500 font-medium">
+                                <th class="p-4">Name</th>
+                                <th class="p-4">Email</th>
+                                <th class="p-4">Date/Time</th>
+                                <th class="p-4">Meet Link</th>
+                                <th class="p-4">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="interviews-tbody" class="text-sm text-gray-800 divide-y divide-gray-100">
+                            <!-- Rows inserted via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="mt-6">
+                <button onclick="actionSendInterviewInvites()" id="btn-send-invites" class="border border-gray-300 bg-white/50 backdrop-blur-sm text-black px-6 py-3 rounded-full text-sm font-medium hover:border-gray-400 transition flex items-center">
+                    Send Interview Invitations
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // State
+        let currentJobId = null;
+        let selectedFile = null;
+        let allCandidates = [];
+        let currentScreeningResult = null;
+
+        // UI Helpers
+        const spinnerSVG = `<svg class="animate-spin ml-2 h-4 w-4 text-current inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `px-6 py-3 rounded shadow-lg text-sm font-medium text-white toast-enter toast-enter-active ${type === 'success' ? 'bg-black' : 'bg-red-500'}`;
+            toast.innerText = message;
+            document.getElementById('toast-container').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.replace('toast-enter-active', 'toast-exit-active');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const res = await fetch(endpoint, options);
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || err.message || `API Error: ${res.status}`);
+                }
+                return await res.json();
+            } catch (err) {
+                showToast(err.message, 'error');
+                throw err;
+            }
+        }
+
+        // --- Navigation ---
+        const views = ['home', 'jd', 'dashboard', 'candidates', 'tests', 'interviews'];
+        function switchTab(targetView) {
+            if(targetView === 'jd') return; // Handled separately
+            
+            // Update tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                if (tab.dataset.target === targetView) {
+                    tab.classList.remove('border-transparent', 'hover:text-black');
+                    tab.classList.add('text-black', 'border-black');
+                } else {
+                    tab.classList.add('border-transparent', 'hover:text-black');
+                    tab.classList.remove('text-black', 'border-black');
+                }
+            });
+
+            // Update views
+            views.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (!el) return;
+                if (v === targetView) {
+                    el.classList.remove('view-hidden');
+                    el.classList.add('view-active');
+                } else {
+                    el.classList.remove('view-active');
+                    el.classList.add('view-hidden');
+                }
+            });
+
+            // Data loading on tab switch
+            if (targetView === 'dashboard') loadDashboard();
+            if (targetView === 'candidates') loadCandidates();
+            if (targetView === 'tests') loadCandidates(); // Tests view uses candidates data
+            if (targetView === 'interviews') loadCandidates(); // Interviews view uses candidates data
+        }
+
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchTab(e.target.dataset.target);
+            });
+        });
+
+        // --- Flow 1: Upload & JD ---
+        const fileInput = document.getElementById('csv-upload');
+        const fileNameSpan = document.getElementById('uploaded-filename');
+        const cancelJdBtn = document.getElementById('cancel-jd-btn');
+        const startEvalBtn = document.getElementById('start-eval-btn');
+        const jdInput = document.getElementById('jd-input');
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                fileNameSpan.innerText = selectedFile.name;
+                
+                document.getElementById('view-home').classList.remove('view-active');
+                document.getElementById('view-home').classList.add('view-hidden');
+                
+                document.getElementById('view-jd').classList.remove('view-hidden');
+                document.getElementById('view-jd').classList.add('view-active');
+            }
+        });
+
+        cancelJdBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            selectedFile = null;
+            jdInput.value = '';
+            
+            document.getElementById('view-jd').classList.remove('view-active');
+            document.getElementById('view-jd').classList.add('view-hidden');
+            
+            document.getElementById('view-home').classList.remove('view-hidden');
+            document.getElementById('view-home').classList.add('view-active');
+        });
+
+        startEvalBtn.addEventListener('click', async () => {
+            const jdText = jdInput.value.trim();
+            if (jdText === '') {
+                alert("Please provide a job description to continue.");
+                jdInput.focus();
+                return;
+            }
+
+            const btnText = document.getElementById('eval-btn-text');
+            const btnIcon = document.getElementById('eval-btn-icon');
+            
+            const originalText = btnText.innerText;
+            btnText.innerHTML = `Uploading & Saving JD... ${spinnerSVG}`;
+            btnIcon.style.display = 'none';
+            startEvalBtn.disabled = true;
+
+            try {
+                const formData = new FormData();
+                formData.append('candidates_file', selectedFile);
+                formData.append('jd_text', jdText);
+
+                currentScreeningResult = await apiCall('/api/screen', {
+                    method: 'POST',
+                    body: formData
+                });
+                currentJobId = 'screening-result';
+
+                renderWorkflowResults(currentScreeningResult);
+                showToast("Candidates evaluated successfully!");
+                switchTab('dashboard');
+
+                // Reset inputs
+                fileInput.value = '';
+                selectedFile = null;
+            } catch (err) {
+                console.error(err);
+            } finally {
+                btnText.innerText = originalText;
+                btnIcon.style.display = 'inline-block';
+                startEvalBtn.disabled = false;
+                jdInput.value = '';
+            }
+        });
+
+        function renderWorkflowResults(result) {
+            document.getElementById('stat-total').innerText = result.total_candidates || 0;
+            document.getElementById('stat-evaluated').innerText = result.evaluated || 0;
+            document.getElementById('stat-shortlisted').innerText = result.shortlisted || 0;
+            document.getElementById('stat-test-sent').innerText = 0;
+            document.getElementById('stat-tested').innerText = 0;
+            document.getElementById('stat-interviews').innerText = 0;
+            document.getElementById('dashboard-jd-content').innerText = jdInput.value.trim();
+
+            const tbody = document.getElementById('candidates-tbody');
+            tbody.innerHTML = '';
+            (result.candidates || []).forEach((candidate, index) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition';
+                const score = typeof candidate.overall_score === 'number'
+                    ? candidate.overall_score.toFixed(1)
+                    : '-';
+                const status = candidate.shortlisted ? 'shortlisted' : 'evaluated';
+                row.innerHTML = `
+                    <td class="p-4 w-12"><input type="checkbox" class="cand-cb rounded border-gray-300" value="${index}"></td>
+                    <td class="p-4 font-medium">${index + 1}</td>
+                    <td class="p-4 font-medium">Candidate ${index + 1}</td>
+                    <td class="p-4">-</td>
+                    <td class="p-4">-</td>
+                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}">${status}</span></td>
+                    <td class="p-4 font-medium">${score}</td>
+                    <td class="p-4 text-gray-500">Resume ${candidate.resume_score ?? 0} / GitHub ${candidate.github_score ?? 0}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // --- Data Loading ---
+        async function loadDashboard() {
+            if(!currentJobId) return;
+            if (currentScreeningResult) {
+                renderWorkflowResults(currentScreeningResult);
+                return;
+            }
+            try {
+                const stats = await apiCall(`/api/dashboard/stats?job_id=${currentJobId}`);
+                document.getElementById('stat-total').innerText = stats.total_candidates;
+                document.getElementById('stat-evaluated').innerText = stats.evaluated;
+                document.getElementById('stat-shortlisted').innerText = stats.shortlisted;
+                document.getElementById('stat-test-sent').innerText = stats.test_sent;
+                document.getElementById('stat-tested').innerText = stats.tested;
+                document.getElementById('stat-interviews').innerText = stats.interviews_scheduled;
+                
+                if (stats.job) {
+                    document.getElementById('dashboard-jd-content').innerText = stats.job.description;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'pending': 'bg-gray-100 text-gray-800',
+                'evaluated': 'bg-blue-100 text-blue-800',
+                'shortlisted': 'bg-green-100 text-green-800',
+                'test_sent': 'bg-yellow-100 text-yellow-800',
+                'interview_scheduled': 'bg-purple-100 text-purple-800',
+                'rejected': 'bg-red-100 text-red-800',
+                'hired': 'bg-emerald-100 text-emerald-800'
+            };
+            return colors[status.toLowerCase()] || 'bg-gray-100 text-gray-800';
+        }
+
+        async function loadCandidates() {
+            if(!currentJobId) return;
+            if (currentScreeningResult) {
+                renderWorkflowResults(currentScreeningResult);
+                return;
+            }
+            try {
+                const res = await apiCall(`/api/candidates?job_id=${currentJobId}`);
+                allCandidates = res.candidates || [];
+                
+                // Render Candidates Table
+                const tbody = document.getElementById('candidates-tbody');
+                tbody.innerHTML = '';
+                
+                // Render Tests Table
+                const testsTbody = document.getElementById('tests-tbody');
+                testsTbody.innerHTML = '';
+                
+                // Render Interviews Table
+                const intTbody = document.getElementById('interviews-tbody');
+                intTbody.innerHTML = '';
+
+                allCandidates.forEach((c, index) => {
+                    // --- Candidate Row ---
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-gray-50 transition cursor-pointer";
+                    
+                    const score = c.overall_score !== null ? c.overall_score.toFixed(1) : '-';
+                    const statusClass = getStatusColor(c.status);
+                    
+                    row.innerHTML = `
+                        <td class="p-4 w-12" onclick="event.stopPropagation()"><input type="checkbox" class="cand-cb rounded border-gray-300" value="${c.id}"></td>
+                        <td class="p-4 font-medium">${index + 1}</td>
+                        <td class="p-4 font-medium">${c.name}<br><span class="text-xs text-gray-500 font-normal">${c.email}</span></td>
+                        <td class="p-4">${c.college || '-'}</td>
+                        <td class="p-4">${c.cgpa || '-'}</td>
+                        <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-medium ${statusClass}">${c.status}</span></td>
+                        <td class="p-4 font-medium">${score}</td>
+                        <td class="p-4 text-gray-400">▼</td>
+                    `;
+                    
+                    // Detail Row
+                    const detailRow = document.createElement('tr');
+                    detailRow.className = "hidden bg-gray-50/50";
+                    let evalHtml = '<p class="text-xs text-gray-500 italic mb-2">No evaluation data available.</p>';
+                    
+                    if (c.evaluation) {
+                        const ev = c.evaluation;
+                        const strengths = (ev.strengths || []).map(s => `<span class="bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs border border-green-200">${s}</span>`).join(' ');
+                        const weaknesses = (ev.weaknesses || []).map(w => `<span class="bg-red-50 text-red-700 px-2 py-0.5 rounded text-xs border border-red-200">${w}</span>`).join(' ');
+                        
+                        evalHtml = `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <p class="font-medium text-xs uppercase text-gray-500 mb-1">AI Explanation</p>
+                                    <p class="text-sm mb-3">${ev.ai_explanation || '-'}</p>
+                                    
+                                    <div class="mb-2"><p class="font-medium text-xs uppercase text-gray-500 mb-1">Strengths</p><div class="flex flex-wrap gap-1">${strengths}</div></div>
+                                    <div><p class="font-medium text-xs uppercase text-gray-500 mb-1">Weaknesses</p><div class="flex flex-wrap gap-1">${weaknesses}</div></div>
+                                </div>
+                                <div class="bg-white p-3 rounded border border-gray-200">
+                                    <p class="font-medium text-xs uppercase text-gray-500 mb-2 border-b pb-1">Score Breakdown</p>
+                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                        <div class="flex justify-between"><span>Resume:</span> <span class="font-medium">${ev.resume_score || 0}/100</span></div>
+                                        <div class="flex justify-between"><span>GitHub:</span> <span class="font-medium">${ev.github_score || 0}/100</span></div>
+                                        <div class="flex justify-between"><span>JD Relevance:</span> <span class="font-medium">${ev.jd_relevance_score || 0}/100</span></div>
+                                        <div class="flex justify-between"><span>AI Project:</span> <span class="font-medium">${ev.ai_project_score || 0}/100</span></div>
+                                        <div class="flex justify-between"><span>Research:</span> <span class="font-medium">${ev.research_score || 0}/100</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    detailRow.innerHTML = `<td colspan="8" class="p-4">${evalHtml}</td>`;
+                    
+                    row.onclick = () => {
+                        detailRow.classList.toggle('hidden');
+                        const arrow = row.querySelector('td:last-child');
+                        arrow.innerText = detailRow.classList.contains('hidden') ? '▼' : '▲';
+                    };
+                    
+                    tbody.appendChild(row);
+                    tbody.appendChild(detailRow);
+
+                    // --- Test Row ---
+                    if (['shortlisted', 'test_sent', 'evaluated', 'pending'].includes(c.status) || c.test_result) {
+                        const tr = document.createElement('tr');
+                        const trScore = c.test_result || {};
+                        tr.innerHTML = `
+                            <td class="p-4 font-medium">${c.name}</td>
+                            <td class="p-4 text-xs text-gray-500">${c.email}</td>
+                            <td class="p-4">${trScore.logical_aptitude_score || '-'}</td>
+                            <td class="p-4">${trScore.coding_test_score || '-'}</td>
+                            <td class="p-4 font-bold">${trScore.total_test_score || '-'}</td>
+                        `;
+                        testsTbody.appendChild(tr);
+                    }
+
+                    // --- Interview Row ---
+                    if (c.interview || ['test_sent', 'shortlisted'].includes(c.status)) {
+                        const ir = document.createElement('tr');
+                        const iv = c.interview || {};
+                        const dateStr = iv.scheduled_at ? new Date(iv.scheduled_at).toLocaleString() : '-';
+                        const linkStr = iv.google_meet_link ? `<a href="${iv.google_meet_link}" target="_blank" class="text-blue-600 hover:underline">Join Meet</a>` : '-';
+                        const statusStr = iv.status ? `<span class="px-2 py-1 bg-gray-100 text-xs rounded">${iv.status}</span>` : '-';
+                        
+                        ir.innerHTML = `
+                            <td class="p-4 font-medium">${c.name}</td>
+                            <td class="p-4 text-xs text-gray-500">${c.email}</td>
+                            <td class="p-4">${dateStr}</td>
+                            <td class="p-4">${linkStr}</td>
+                            <td class="p-4">${statusStr}</td>
+                        `;
+                        intTbody.appendChild(ir);
+                    }
+                });
+
+            } catch (e) { console.error(e); }
+        }
+
+        // Checkbox select all
+        document.getElementById('selectAllCands').addEventListener('change', (e) => {
+            const checked = e.target.checked;
+            document.querySelectorAll('.cand-cb').forEach(cb => cb.checked = checked);
+        });
+
+        function getSelectedCandidateIds() {
+            const ids = [];
+            document.querySelectorAll('.cand-cb:checked').forEach(cb => ids.push(parseInt(cb.value)));
+            return ids;
+        }
+
+        // --- Actions ---
+        async function doActionWithLoading(btnId, originalText, apiCallPromise) {
+            const btn = document.getElementById(btnId);
+            btn.innerHTML = `${originalText} ${spinnerSVG}`;
+            btn.disabled = true;
+            try {
+                const res = await apiCallPromise();
+                showToast(res.message || "Action successful");
+                await loadDashboard();
+                await loadCandidates();
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function actionEvaluate() {
+            if(!currentJobId) return showToast("No job ID", "error");
+            doActionWithLoading('btn-eval', 'Evaluate Candidates', () => 
+                apiCall('/api/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_id: currentJobId })
+                })
+            );
+        }
+
+        function actionShortlist() {
+            if(!currentJobId) return showToast("No job ID", "error");
+            doActionWithLoading('btn-shortlist', 'Shortlist', () => 
+                apiCall('/api/shortlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_id: currentJobId })
+                })
+            );
+        }
+
+        function actionSendTestLinks() {
+            const ids = getSelectedCandidateIds();
+            if (ids.length === 0) return showToast("Select candidates from Candidates tab first", "error");
+            const link = document.getElementById('test-link-input').value;
+            
+            doActionWithLoading('btn-send-tests', 'Send Links', () => 
+                apiCall('/api/send-test-links', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ candidate_ids: ids, test_link: link || undefined })
+                })
+            );
+        }
+
+        function actionScheduleInterviews() {
+            const ids = getSelectedCandidateIds();
+            if (ids.length === 0) return showToast("Select candidates from Candidates tab first", "error");
+            
+            const email = document.getElementById('int-email').value;
+            const date = document.getElementById('int-date').value;
+            const time = document.getElementById('int-time').value;
+            const duration = document.getElementById('int-duration').value;
+            
+            if(!email || !date || !time) return showToast("Fill all interview details", "error");
+
+            doActionWithLoading('btn-schedule', 'Schedule for Selected Candidates', () => 
+                apiCall('/api/schedule-interviews', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        candidate_ids: ids,
+                        interviewer_email: email,
+                        start_date: date,
+                        start_time: time,
+                        interview_duration_minutes: parseInt(duration)
+                    })
+                })
+            );
+        }
+
+        function actionSendInterviewInvites() {
+            const ids = getSelectedCandidateIds();
+            if (ids.length === 0) return showToast("Select candidates from Candidates tab first", "error");
+            
+            doActionWithLoading('btn-send-invites', 'Send Interview Invitations', () => 
+                apiCall('/api/send-interview-invites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ candidate_ids: ids })
+                })
+            );
+        }
+
+        // Test CSV Upload
+        const testCsvUpload = document.getElementById('test-csv-upload');
+        testCsvUpload.addEventListener('change', async (e) => {
+            if (e.target.files.length > 0) {
+                if(!currentJobId) return showToast("No active job. Start from Home.", "error");
+                const file = e.target.files[0];
+                document.getElementById('test-csv-name').innerText = file.name;
+                document.getElementById('test-csv-name').classList.remove('hidden');
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('job_id', currentJobId);
+
+                const origText = document.getElementById('upload-test-text').innerText;
+                document.getElementById('upload-test-text').innerHTML = `Uploading... ${spinnerSVG}`;
+                
+                try {
+                    await apiCall('/api/upload-test-results', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    showToast("Test results uploaded successfully!");
+                    await loadCandidates();
+                } catch (err) {
+                    console.error(err);
+                } finally {
+                    document.getElementById('upload-test-text').innerText = origText;
+                    testCsvUpload.value = '';
+                }
+            }
+        });
+
+
+        // --- Dynamic Text Effect ---
+        const words = ["screen", "evaluate", "rank", "hire"];
+        let currentWordIndex = 0;
+        const dynamicWordEl = document.getElementById("dynamic-word");
+
+        setInterval(() => {
+            if(!dynamicWordEl) return;
+            dynamicWordEl.classList.remove("fade-in");
+            dynamicWordEl.classList.add("fade-out");
+            
+            setTimeout(() => {
+                currentWordIndex = (currentWordIndex + 1) % words.length;
+                dynamicWordEl.innerText = words[currentWordIndex];
+                
+                dynamicWordEl.classList.remove("fade-out");
+                dynamicWordEl.classList.add("fade-in");
+            }, 500); 
+        }, 3000); 
+
+        // --- Three.js Globe Particle Effect ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.z = 15;
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setClearColor(0x000000, 0); 
+        container.appendChild(renderer.domElement);
+
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 3000;
+        const posArray = new Float32Array(particlesCount * 3);
+
+        for(let i = 0; i < particlesCount * 3; i++) {
+            const r = 12; 
+            const theta = 2 * Math.PI * Math.random();
+            const phi = Math.acos(2 * Math.random() - 1);
+            
+            posArray[i*3] = r * Math.sin(phi) * Math.cos(theta);
+            posArray[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+            posArray[i*3+2] = r * Math.cos(phi);
+        }
+
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+        const particlesMaterial = new THREE.PointsMaterial({
+            size: 0.08,
+            color: 0x888888,
+            transparent: true,
+            opacity: 0.4,
+        });
+
+        const particleMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+        particleMesh.position.x = 8; 
+        scene.add(particleMesh);
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const elapsedTime = clock.getElapsedTime();
+            particleMesh.rotation.y = elapsedTime * 0.05;
+            particleMesh.rotation.x = elapsedTime * 0.02;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    </script>
+</body>
+</html>
