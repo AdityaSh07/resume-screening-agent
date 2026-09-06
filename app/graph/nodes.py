@@ -1,26 +1,8 @@
-"""
-Main graph nodes for the candidate screening pipeline.
-
-The key node here is `evaluate_candidates_node`, which replaces the
-old `Send` fan-out with a rate-limit-safe sequential (or small-batch)
-evaluation loop.
-
-Rate-limiting strategy
-----------------------
-Candidates are processed in batches of `LLM_BATCH_SIZE` (default: 1).
-After each complete batch (except the last) the node waits
-`LLM_BATCH_WAIT_SECONDS` (default: 60 s) so the LLM API's TPM window
-resets before the next batch starts.
-
-Within a single candidate's subgraph run the resume-eval and
-github-eval branches may execute concurrently (as designed), but each
-individually acquires a token slot from the shared `llm_rate_limiter`
-before firing, so the combined usage is still bounded.
-"""
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 
 from langgraph.graph import StateGraph
@@ -32,6 +14,8 @@ from app.analyze_jd import analyze_jd
 from app.get_jd import process_job_description
 from app.services.email_service import email_service
 from app.graph.candidate_subgraph.graph import candidate_graph
+from app.candidate_identity import extract_candidate_identity
+from app.database import save_shortlisted_candidates
 from .state import ScreeningState
 from langchain_core.documents import Document
 
@@ -213,11 +197,26 @@ def rank_candidates_node(state: ScreeningState) -> dict:
     results: list[dict] = state.get("candidate_results") or []
 
     # Sort by overall_score descending (None scores treated as 0)
-    ranked = sorted(
+    sorted_results = sorted(
         results,
         key=lambda r: r.get("overall_score") or 0.0,
         reverse=True,
     )
+
+    # A candidate subgraph result can be emitted more than once by a retry or
+    # graph state merge. Keep the highest-ranked copy only.
+    ranked: list[dict] = []
+    seen_candidates: set[str] = set()
+    for result in sorted_results:
+        candidate = result.get("candidate") or {}
+        if isinstance(candidate, dict):
+            candidate_key = candidate.get("page_content", "")
+        else:
+            candidate_key = candidate.page_content
+        if candidate_key in seen_candidates:
+            continue
+        seen_candidates.add(candidate_key)
+        ranked.append(result)
 
     shortlisted = [
         r for r in ranked if r.get("shortlisted") is True
@@ -238,6 +237,44 @@ def rank_candidates_node(state: ScreeningState) -> dict:
 builder.add_node(
     "rank_candidates",
     rank_candidates_node,
+)
+
+
+async def persist_shortlisted_candidates_node(state: ScreeningState) -> dict:
+    shortlisted = state.get("shortlisted_candidates") or []
+    if not shortlisted:
+        return {"database_results": []}
+
+    candidates_to_store: list[dict] = []
+    for result in shortlisted:
+        candidate = result.get("candidate")
+        if isinstance(candidate, dict):
+            candidate = Document(
+                page_content=candidate.get("page_content", ""),
+                metadata=candidate.get("metadata", {}),
+            )
+        if not isinstance(candidate, Document):
+            logger.warning("Skipping shortlisted result without a candidate Document")
+            continue
+        enriched = dict(result)
+        identity = await extract_candidate_identity(candidate)
+        if not identity.candidate_id:
+            identity.candidate_id = hashlib.sha256(
+                candidate.page_content.encode("utf-8")
+            ).hexdigest()[:24]
+        enriched["identity"] = identity
+        candidates_to_store.append(enriched)
+
+    database_results = await save_shortlisted_candidates(
+        job_id=state["job_id"],
+        candidates=candidates_to_store,
+    )
+    return {"database_results": database_results}
+
+
+builder.add_node(
+    "persist_shortlisted_candidates",
+    persist_shortlisted_candidates_node,
 )
 
 

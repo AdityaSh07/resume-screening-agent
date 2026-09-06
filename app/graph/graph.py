@@ -52,7 +52,8 @@ builder.add_edge("load_candidates", "process_job_description")
 builder.add_edge("process_job_description", "analyze_jd")
 builder.add_edge("analyze_jd", "evaluate_candidates")
 builder.add_edge("evaluate_candidates", "rank_candidates")
-builder.add_edge("rank_candidates", "send_shortlisted_test_emails")
+builder.add_edge("rank_candidates", "persist_shortlisted_candidates")
+builder.add_edge("persist_shortlisted_candidates", "send_shortlisted_test_emails")
 builder.add_edge("send_shortlisted_test_emails", END)
 
 

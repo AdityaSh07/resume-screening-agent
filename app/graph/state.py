@@ -26,5 +26,8 @@ class ScreeningState(TypedDict, total=False):
     # Shortlisted candidates after scoring (populated by shortlist_node)
     shortlisted_candidates: list[dict] | None
 
+    # PostgreSQL persistence results for shortlisted candidates
+    database_results: list[dict]
+
     # Delivery results for the post-ranking candidate notifications
     email_results: list[dict]

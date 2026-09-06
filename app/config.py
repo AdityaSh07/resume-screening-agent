@@ -66,7 +66,16 @@ EMAIL_FROM: str = os.getenv(
     "EMAIL_FROM", "amssre.15001@gmail.com"
 )
 
+EMAIL_REPLY_TO: str | None = os.getenv("EMAIL_REPLY_TO")
+
 TEST_LINK: str | None = os.getenv("TEST_LINK")
+
+TEST_PASSING_SCORE: float = float(os.getenv("TEST_PASSING_SCORE", "70"))
+
+GOOGLE_CLIENT_ID: str | None = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET: str | None = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI: str | None = os.getenv("GOOGLE_REDIRECT_URI")
+GOOGLE_TOKEN_ENCRYPTION_KEY: str | None = os.getenv("GOOGLE_TOKEN_ENCRYPTION_KEY")
 
 
 # ---------------------------------------------------------

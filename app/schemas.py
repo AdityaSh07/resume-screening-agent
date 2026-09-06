@@ -40,3 +40,23 @@ class GitHubEvaluation(BaseModel):
     reasoning: str = Field(
         description="Brief explanation of the candidate's GitHub relevance to the job."
     )
+
+
+class CandidateIdentity(BaseModel):
+    candidate_id: str = Field(default="", description="Candidate or application ID if present.")
+    name: str = Field(description="Candidate's full name.")
+    email: str = Field(description="Candidate's email address.")
+
+
+class TestResultExtraction(BaseModel):
+    name: str = Field(default="", description="Candidate's name if present.")
+    candidate_id: str = Field(default="", description="Candidate or application ID if present.")
+    email: str = Field(default="", description="Candidate's email address if present.")
+    logical_aptitude_score: float | None = Field(
+        default=None,
+        description="Logical aptitude score, preserving the source scale.",
+    )
+    coding_test_score: float | None = Field(
+        default=None,
+        description="Coding test score, preserving the source scale.",
+    )

@@ -11,3 +11,9 @@ langchain-groq
 pypdf
 python-dotenv
 resend
+SQLAlchemy>=2.0
+asyncpg
+google-api-python-client
+google-auth
+google-auth-oauthlib
+cryptography
