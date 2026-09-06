@@ -155,7 +155,7 @@ async def get_dashboard_stats(job_id: str) -> JSONResponse:
 
 
 @app.post("/api/screen")
-@limiter.limit("1/hour")
+@limiter.limit("1/minute")
 async def screen_candidates(
 	request: Request,
 	candidates_file: UploadFile = File(...),
