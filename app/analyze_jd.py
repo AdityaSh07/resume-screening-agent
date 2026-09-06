@@ -3,6 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from app.graph.state import ScreeningState
 from app.llm import llm_for_jd
 from app.rate_limiter import llm_rate_limiter
+from app.database import save_job
 
 
 jd_prompt = ChatPromptTemplate.from_messages([
@@ -52,6 +53,10 @@ async def analyze_jd(state: ScreeningState):
         messages,
     )
 
-    return {
-        "jd_requirements": response
-    }
+    jd_requirements = response.model_dump() if hasattr(response, "model_dump") else response
+    await save_job(
+        job_id=state["job_id"],
+        jd_text=state["jd_text"],
+        jd_requirements=jd_requirements,
+    )
+    return {"jd_requirements": response}

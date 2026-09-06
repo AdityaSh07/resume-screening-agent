@@ -229,6 +229,17 @@
                 </div>
             </div>
 
+            <div id="active-job-notice" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-5 mb-8">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <p class="text-sm font-semibold text-amber-900">Save this unique Job ID</p>
+                        <p class="text-sm text-amber-800 mt-1">Keep it safe. You need it later to access this job and upload test results without running screening again.</p>
+                        <p id="active-job-id" class="font-mono text-sm text-amber-950 mt-2 break-all"></p>
+                    </div>
+                    <button id="copy-job-id-btn" class="bg-amber-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-800 transition">Copy Job ID</button>
+                </div>
+            </div>
+
             <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm">
                 <h3 class="text-lg font-medium text-black mb-2">Active Job Description</h3>
                 <div id="dashboard-jd-content" class="text-gray-600 whitespace-pre-wrap text-sm max-h-48 overflow-y-auto">
@@ -274,6 +285,16 @@
         <!-- View: Tests -->
         <div id="view-tests" class="view-transition view-hidden w-full">
             <h2 class="text-3xl font-medium tracking-tight text-black mb-8">Test Management</h2>
+
+            <div class="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-sm mb-8">
+                <h3 class="text-lg font-medium text-black mb-2">Open an Existing Job</h3>
+                <p class="text-sm text-gray-600 mb-4">Enter the job ID from a previous screening to upload test results without screening again.</p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="job-id-input" class="flex-1 border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-black" placeholder="Enter job ID">
+                    <button id="load-job-btn" class="bg-black text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition">Load Job</button>
+                </div>
+                <p id="job-load-status" class="text-sm text-gray-600 mt-3"></p>
+            </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
                 <!-- Upload Results -->
@@ -344,6 +365,70 @@
         let selectedFile = null;
         let allCandidates = [];
         let currentScreeningResult = null;
+        const ACTIVE_JOB_STORAGE_KEY = 'screeneasy.activeJobId';
+
+        function showActiveJobNotice(jobId) {
+            const notice = document.getElementById('active-job-notice');
+            const idElement = document.getElementById('active-job-id');
+            if (!notice || !idElement || !jobId) return;
+            idElement.innerText = jobId;
+            notice.classList.remove('hidden');
+        }
+
+        async function restoreActiveJob() {
+            try {
+                const savedJobId = localStorage.getItem(ACTIVE_JOB_STORAGE_KEY);
+                const endpoint = savedJobId
+                    ? `/api/jobs/${encodeURIComponent(savedJobId)}`
+                    : '/api/jobs/latest';
+                const job = await apiCall(endpoint);
+                currentJobId = job.job_id;
+                allCandidates = job.shortlisted_candidates || [];
+                localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, currentJobId);
+                showActiveJobNotice(currentJobId);
+                const jobIdInput = document.getElementById('job-id-input');
+                if (jobIdInput) jobIdInput.value = currentJobId;
+            } catch (err) {
+                if (localStorage.getItem(ACTIVE_JOB_STORAGE_KEY)) {
+                    localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY);
+                }
+            }
+        }
+
+        async function loadJobById() {
+            const input = document.getElementById('job-id-input');
+            const status = document.getElementById('job-load-status');
+            const jobId = input.value.trim();
+            if (!jobId) {
+                status.innerText = 'Enter a job ID first.';
+                status.className = 'text-sm text-red-600 mt-3';
+                return;
+            }
+
+            const button = document.getElementById('load-job-btn');
+            button.disabled = true;
+            status.innerText = 'Loading job...';
+            status.className = 'text-sm text-gray-600 mt-3';
+            try {
+                const job = await apiCall(`/api/jobs/${encodeURIComponent(jobId)}`);
+                currentJobId = job.job_id;
+                currentScreeningResult = null;
+                allCandidates = job.shortlisted_candidates || [];
+                localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, currentJobId);
+                showActiveJobNotice(currentJobId);
+                input.value = currentJobId;
+                status.innerText = `Loaded job ${currentJobId}. Test results can now be uploaded.`;
+                await loadDashboard();
+                await loadCandidates();
+            } catch (err) {
+                status.innerText = err.message;
+                status.className = 'text-sm text-red-600 mt-3';
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        restoreActiveJob();
 
         const calendarConnected = new URLSearchParams(window.location.search).get('calendar_connected');
         if (calendarConnected === '1') {
@@ -480,6 +565,8 @@
                     body: formData
                 });
                 currentJobId = currentScreeningResult.job_id;
+                localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, currentJobId);
+                showActiveJobNotice(currentJobId);
 
                 renderWorkflowResults(currentScreeningResult);
                 showToast("Candidates evaluated successfully!");
@@ -707,9 +794,21 @@
 
         // Test CSV Upload
         const testCsvUpload = document.getElementById('test-csv-upload');
+        document.getElementById('copy-job-id-btn').addEventListener('click', async () => {
+            if (!currentJobId) return;
+            await navigator.clipboard.writeText(currentJobId);
+            showToast('Job ID copied. Keep it safe for later.');
+        });
+        document.getElementById('load-job-btn').addEventListener('click', loadJobById);
+        document.getElementById('job-id-input').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') loadJobById();
+        });
         testCsvUpload.addEventListener('change', async (e) => {
             if (e.target.files.length > 0) {
-                if(!currentJobId) return showToast("No active job. Start from Home.", "error");
+                if (!currentJobId) {
+                    await restoreActiveJob();
+                }
+                if (!currentJobId) return showToast("No saved job found. Run screening once to create a job.", "error");
                 const file = e.target.files[0];
                 document.getElementById('test-csv-name').innerText = file.name;
                 document.getElementById('test-csv-name').classList.remove('hidden');

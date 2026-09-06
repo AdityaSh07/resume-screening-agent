@@ -17,7 +17,12 @@ from app.config import TEST_PASSING_SCORE
 from app.graph.graph import graph
 from app.graph.test_results.graph import test_results_graph
 from app.graph.interviews.graph import interview_graph
-from app.database import load_google_token
+from app.database import (
+	get_job,
+	get_latest_job,
+	get_shortlisted_candidates,
+	load_google_token,
+)
 from app.services.google_calendar_service import calendar_service
 
 
@@ -96,6 +101,57 @@ def _unique_candidate_results(results: list[dict]) -> list[dict]:
 @app.get("/health")
 async def health() -> dict[str, str]:
 	return {"status": "ok"}
+
+
+@app.get("/api/jobs/latest")
+async def get_latest_job_details() -> JSONResponse:
+	job = await get_latest_job()
+	if job is None:
+		raise HTTPException(status_code=404, detail="No saved jobs found.")
+	job["shortlisted_candidates"] = await get_shortlisted_candidates(job["job_id"])
+	return JSONResponse(content=_json_safe(job))
+
+
+@app.get("/api/jobs/{job_id}")
+async def get_job_details(job_id: str) -> JSONResponse:
+	job_id = job_id.strip()
+	job = await get_job(job_id)
+	if job is None:
+		raise HTTPException(status_code=404, detail="Job not found.")
+	job["shortlisted_candidates"] = await get_shortlisted_candidates(job_id)
+	return JSONResponse(content=_json_safe(job))
+
+
+@app.get("/api/candidates")
+async def get_candidates(job_id: str) -> JSONResponse:
+	job_id = job_id.strip()
+	if not job_id:
+		raise HTTPException(status_code=400, detail="job_id is required.")
+	if await get_job(job_id) is None:
+		raise HTTPException(status_code=404, detail="Job not found.")
+	return JSONResponse(
+		content={"job_id": job_id, "candidates": await get_shortlisted_candidates(job_id)}
+	)
+
+
+@app.get("/api/dashboard/stats")
+async def get_dashboard_stats(job_id: str) -> JSONResponse:
+	job_id = job_id.strip()
+	if not job_id:
+		raise HTTPException(status_code=400, detail="job_id is required.")
+	job = await get_job(job_id)
+	if job is None:
+		raise HTTPException(status_code=404, detail="Job not found.")
+	candidates = await get_shortlisted_candidates(job_id)
+	return JSONResponse(
+		content={
+			"total_candidates": len(candidates),
+			"evaluated": len(candidates),
+			"shortlisted": len(candidates),
+			"test_sent": len(candidates),
+			"job": {"job_id": job["job_id"], "description": job["jd_text"]},
+		}
+	)
 
 
 @app.post("/api/screen")
@@ -181,6 +237,8 @@ async def upload_test_results(
 		)
 	if not job_id.strip():
 		raise HTTPException(status_code=400, detail="job_id is required.")
+	if await get_job(job_id.strip()) is None:
+		raise HTTPException(status_code=404, detail="Job not found for this job_id.")
 
 	UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 	upload_path = UPLOAD_DIR / f"{uuid4().hex}{extension}"

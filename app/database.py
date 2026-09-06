@@ -24,6 +24,22 @@ class Base(DeclarativeBase):
     pass
 
 
+class Job(Base):
+    __tablename__ = "jobs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    description: Mapped[str] = mapped_column(Text)
+    job_id: Mapped[str] = mapped_column(String(64), index=True)
+    jd_text: Mapped[str] = mapped_column(Text)
+    jd_requirements: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow
+    )
+
+
 class ShortlistedCandidate(Base):
     __tablename__ = "shortlisted_candidates"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -73,6 +89,12 @@ async def _ensure_schema(engine) -> None:
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
         for statement in (
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_id VARCHAR(64)",
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS jd_text TEXT",
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS jd_requirements JSONB",
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP",
+            "UPDATE jobs SET job_id = COALESCE(job_id, 'legacy-' || id::text), jd_text = COALESCE(jd_text, description), jd_requirements = COALESCE(jd_requirements, '{}'::jsonb), updated_at = COALESCE(updated_at, created_at)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_jobs_job_id ON jobs (job_id)",
             "ALTER TABLE shortlisted_candidates DROP CONSTRAINT IF EXISTS uq_shortlisted_job_email",
             "ALTER TABLE shortlisted_candidates ADD COLUMN IF NOT EXISTS candidate_id VARCHAR(255)",
             "ALTER TABLE shortlisted_candidates ADD COLUMN IF NOT EXISTS qualification_status VARCHAR(64)",
@@ -223,6 +245,10 @@ async def get_shortlisted_candidates(job_id: str) -> list[dict]:
                     "rank": row.rank,
                     "overall_score": row.overall_score,
                     "test_results": row.test_results,
+                    "resume_score": row.resume_score,
+                    "github_score": row.github_score,
+                    "resume_reasoning": row.resume_reasoning,
+                    "github_reasoning": row.github_reasoning,
                     "final_score": row.final_score,
                     "qualification_status": row.qualification_status,
                     "meeting_id": row.meeting_id,
@@ -311,5 +337,77 @@ async def load_google_token() -> dict[str, Any] | None:
                 select(RecruiterIntegration).where(RecruiterIntegration.provider == "google")
             )
             return row.token_data if row else None
+    finally:
+        await engine.dispose()
+
+
+async def save_job(
+    job_id: str,
+    jd_text: str,
+    jd_requirements: dict[str, Any],
+) -> None:
+    session_factory = _session_factory()
+    engine = session_factory.kw["bind"]
+    try:
+        await _ensure_schema(engine)
+        async with session_factory() as session:
+            job = await session.scalar(select(Job).where(Job.job_id == job_id))
+            if job is None:
+                session.add(
+                    Job(
+                        title=jd_requirements.get("job_title"),
+                        description=jd_text,
+                        job_id=job_id,
+                        jd_text=jd_text,
+                        jd_requirements=jd_requirements,
+                    )
+                )
+            else:
+                job.jd_text = jd_text
+                job.jd_requirements = jd_requirements
+                job.updated_at = datetime.utcnow()
+            await session.commit()
+    finally:
+        await engine.dispose()
+
+
+async def get_job(job_id: str) -> dict[str, Any] | None:
+    session_factory = _session_factory()
+    engine = session_factory.kw["bind"]
+    try:
+        await _ensure_schema(engine)
+        async with session_factory() as session:
+            job = await session.scalar(select(Job).where(Job.job_id == job_id))
+            if job is None:
+                return None
+            return {
+                "job_id": job.job_id,
+                "jd_text": job.jd_text,
+                "jd_requirements": job.jd_requirements,
+                "created_at": job.created_at.isoformat() if job.created_at else None,
+                "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+            }
+    finally:
+        await engine.dispose()
+
+
+async def get_latest_job() -> dict[str, Any] | None:
+    session_factory = _session_factory()
+    engine = session_factory.kw["bind"]
+    try:
+        await _ensure_schema(engine)
+        async with session_factory() as session:
+            job = await session.scalar(
+                select(Job).order_by(Job.updated_at.desc()).limit(1)
+            )
+            if job is None:
+                return None
+            return {
+                "job_id": job.job_id,
+                "jd_text": job.jd_text,
+                "jd_requirements": job.jd_requirements,
+                "created_at": job.created_at.isoformat() if job.created_at else None,
+                "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+            }
     finally:
         await engine.dispose()
